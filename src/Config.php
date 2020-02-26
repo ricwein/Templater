@@ -35,7 +35,7 @@ class Config
     public function __construct(array $config = [])
     {
         foreach (get_class_vars(static::class) as $name => $value) {
-            if (array_key_exists($name, $config) && (gettype($value) === gettype($config[$name]))) {
+            if (array_key_exists($name, $config) && (gettype($value) === gettype($config[$name]) || $value === null)) {
                 $this->{$name} = $config[$name];
             }
         }

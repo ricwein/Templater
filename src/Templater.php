@@ -87,10 +87,7 @@ class Templater
                 return $content;
             }
 
-            $cacheKey = sprintf("view.%s_%s",
-                $templateFile->path()->filepath,
-                hash('sha256', $templateFile->getTime()),
-            );
+            $cacheKey = static::getCacheKeyFor($templateFile);
             $templateCache = $this->cache->getItem($cacheKey);
 
             if (null === $content = $templateCache->get()) {
@@ -107,8 +104,21 @@ class Templater
             $content = trim($content);
             return $content;
         } catch (Exception $exception) {
-            throw new TemplatingException("Error rendering Template: {$templateFile->path()->filepath}", $exception);
+            throw new TemplatingException("Error rendering Template: {$templateFile->path()->filepath}", 500, $exception);
         }
+    }
+
+    public static function getCacheKeyFor(File $file): string
+    {
+        return sprintf(
+            "view.%s_%s",
+            str_replace(
+                ['{', '}', '(', ')', '/', '\\', '@', ':'],
+                ['|', '|', '|', '|', '.', '.', '-', '_'],
+                $file->path()->filepath
+            ),
+            hash('sha256', $file->getTime())
+        );
     }
 
     /**

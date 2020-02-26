@@ -15,6 +15,7 @@ use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\Templater\Config;
+use ricwein\Templater\Templater;
 use ScssPhp\ScssPhp\Compiler;
 use ScssPhp\ScssPhp\Formatter\Crunched as FormatterCrunched;
 use ScssPhp\ScssPhp\Formatter\Expanded as FormatterExpanded;
@@ -54,11 +55,7 @@ class AssetParser
             throw new FileNotFoundException("File {$assetFile->path()->filepath} not found!", 404);
         }
 
-        $cacheKey = sprintf(
-            "asset.%s.v%d",
-            $assetFile->path()->filepath,
-            $assetFile->getTime()
-        );
+        $cacheKey = Templater::getCacheKeyFor($assetFile);
         $cacheItem = $this->cache->getItem($cacheKey);
 
         if (null === $asset = $cacheItem->get()) {
