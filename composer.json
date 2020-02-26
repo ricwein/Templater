@@ -37,10 +37,5 @@
     "psr-4": {
       "ricwein\\Templater\\": "src/"
     }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "ricwein\\Templater\\Tests\\": "tests"
-    }
   }
 }

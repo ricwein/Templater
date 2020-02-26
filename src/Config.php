@@ -3,6 +3,7 @@
 namespace ricwein\Templater;
 
 use ricwein\Templater\Exceptions\InvalidArgumentException;
+use ricwein\Templater\Exceptions\UnexpectedValueException;
 
 /**
  * Template Engine Configuration Class
@@ -19,25 +20,44 @@ use ricwein\Templater\Exceptions\InvalidArgumentException;
 class Config
 {
     // settings with default values
-    private bool $debug = false;
-    private int $cacheDuration = 3600;
-    private bool $cacheBusterEnabled = true;
-    private string $fileExtension = ".html.twig";
-    private bool $stripComments = true;
+    protected bool $debug = false;
+    protected int $cacheDuration = 3600;
+    protected bool $cacheBusterEnabled = true;
+    protected string $fileExtension = ".html.twig";
+    protected bool $stripComments = true;
 
     // settings which must be set by the user
-    private ?string $templateDir = null;
-    private ?string $assetDir = null;
+    protected ?string $templateDir = null;
+    protected ?string $assetDir = null;
 
     // optional variable-bindings for assets compilation (e.g. scss vars)
-    private array $variables = [];
+    protected array $variables = [];
 
+    /**
+     * Config constructor.
+     * @param array $config
+     * @throws UnexpectedValueException
+     */
     public function __construct(array $config = [])
     {
-        foreach (get_class_vars(static::class) as $name => $value) {
-            if (array_key_exists($name, $config) && (gettype($value) === gettype($config[$name]) || $value === null)) {
-                $this->{$name} = $config[$name];
+        foreach ($config as $key => $value) {
+
+            if (!property_exists($this, $key)) {
+                continue;
             }
+
+            if ($this->{$key} === null || gettype($this->{$key}) === gettype($value)) {
+                $this->{$key} = $value;
+                continue;
+            }
+
+            throw new UnexpectedValueException(sprintf(
+                "Type Mismatch for Config property '%s'. Expected type: %s but got: %s",
+                $key,
+                is_object($this->{$key}) ? sprintf('class(%s)', get_class($this->{$key})) : gettype($this->{$key}),
+                is_object($value) ? sprintf('class(%s)', get_class($value)) : gettype($value),
+            ), 500);
+
         }
     }
 

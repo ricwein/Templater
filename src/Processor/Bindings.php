@@ -27,12 +27,8 @@ class Bindings extends Worker
      * @param array|object|null $bindings variables to be replaced
      * @return string
      */
-    public function replace(string $content, $bindings = null): string
+    public function replace(string $content, $bindings = []): string
     {
-        if ($bindings === null) {
-            return $content;
-        }
-
         // replace all variables
         $content = preg_replace_callback('/{{\s*(.+)\s*}}/U', function (array $match) use ($bindings): string {
 

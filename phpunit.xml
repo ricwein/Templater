@@ -22,6 +22,9 @@
 		<testsuite name="ricwein/Templater Unit-Testing">
 			<directory suffix=".php">./tests/units/</directory>
 		</testsuite>
+		<testsuite name="ricwein/Templater Processor-Testing">
+			<directory suffix=".php">./tests/processors/</directory>
+		</testsuite>
 		<testsuite name="ricwein/Templater Integration-Testing">
 			<directory suffix=".php">./tests/integration/</directory>
 		</testsuite>

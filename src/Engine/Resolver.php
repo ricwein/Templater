@@ -381,9 +381,7 @@ class Resolver
      */
     public function resolveCondition(string $condition): bool
     {
-        $operators = [
-            '>', '<', '==', '>=', '<=', '!=', 'in', 'not in', 'starts with', 'ends with'
-        ];
+        $operators = array_keys(static::getOperators());
 
         $lhs = null;
         $rhs = null;
@@ -407,7 +405,7 @@ class Resolver
             return $this->resolveSingleParameterCondition($condition);
         }
 
-        return $this->resolveEquation(trim($lhs), trim($rhs), trim($operator));
+        return $this->resolveEquation(trim($lhs), trim($rhs), $operator);
     }
 
     private static function getOperators(): array
@@ -435,7 +433,7 @@ class Resolver
             '<=' => function ($lhs, $rhs): bool {
                 return $lhs <= $rhs;
             },
-            'in' => function ($lhs, $rhs, string $operator): bool {
+            ' in ' => function ($lhs, $rhs, string $operator): bool {
                 switch (true) {
                     case is_array($rhs):
                         return in_array($lhs, $rhs, true);
@@ -445,7 +443,7 @@ class Resolver
                         throw static::datatypeException($operator, $lhs, $rhs);
                 }
             },
-            'not in' => function ($lhs, $rhs, string $operator): bool {
+            ' not in ' => function ($lhs, $rhs, string $operator): bool {
                 switch (true) {
                     case is_array($rhs):
                         return !in_array($lhs, $rhs, true);
@@ -455,7 +453,7 @@ class Resolver
                         throw static::datatypeException($operator, $lhs, $rhs);
                 }
             },
-            'starts with' => function ($lhs, $rhs, string $operator): bool {
+            ' starts with ' => function ($lhs, $rhs, string $operator): bool {
                 switch (true) {
                     case is_array($rhs):
                         return $lhs === $rhs[array_key_first($rhs)];
@@ -465,7 +463,7 @@ class Resolver
                         throw static::datatypeException($operator, $lhs, $rhs);
                 }
             },
-            'ends with' => function ($lhs, $rhs, string $operator): bool {
+            ' ends with ' => function ($lhs, $rhs, string $operator): bool {
                 switch (true) {
                     case is_array($rhs):
                         return $lhs === $rhs[array_key_last($rhs)];
