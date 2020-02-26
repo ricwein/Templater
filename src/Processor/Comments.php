@@ -27,7 +27,7 @@ class Comments extends Worker
      */
     public function replace(string $content): string
     {
-        return preg_replace_callback('/{#\s*(.*)\s*#}/s', function (array $match): string {
+        return preg_replace_callback('/{#\s*(.*)\s*#}/Us', function (array $match): string {
 
             if (!$this->config->stripComments && isset($match[1]) && !empty($match[1])) {
                 return sprintf("<!-- %s -->", trim($match[1]));

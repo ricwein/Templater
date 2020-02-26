@@ -11,7 +11,8 @@ class CommentProcessorTest extends TestCase
         "This {# comment here #} is a test" => ["This  is a test", "This <!-- comment here --> is a test"],
         "This {# {{ test }} #} is a test" => ["This  is a test", "This <!-- {{ test }} --> is a test"],
         "This {# {% block 'test' %}{% endblock %} #} is a test" => ["This  is a test", "This <!-- {% block 'test' %}{% endblock %} --> is a test"],
-        "This {# {# nasty nesting #} #} is a test" => ["This  is a test", "This <!-- {# nasty nesting #} --> is a test"],
+        "This {# test1 #} {# test2 #} is a test" => ["This   is a test", "This <!-- test1 --> <!-- test2 --> is a test"],
+        "This {# test1 #} test {# test2 #} is a test" => ["This  test  is a test", "This <!-- test1 --> test <!-- test2 --> is a test"],
     ];
 
     public function testCommentStripping()
