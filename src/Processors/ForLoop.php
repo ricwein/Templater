@@ -5,10 +5,10 @@
 
 namespace ricwein\Templater\Processors;
 
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Processor;
 
 /**
  * simple Template parser with Twig-like syntax
@@ -23,17 +23,17 @@ class ForLoop extends Processor
     const VARIABLE_AS = 'var_as';
 
     /**
-     * @param string $content
      * @param array $bindings
-     * @return string
-     * @throws UnexpectedValueException
+     * @param BaseFunction[] $functions
+     * @return ForLoop
      * @throws RuntimeException
+     * @throws UnexpectedValueException
      */
-    public function process(array $bindings = []): self
+    public function process(array $bindings = [], array $functions = []): self
     {
         while ($loop = static::getNextLoop($this->content)) {
 
-            $binding = (new Resolver($bindings))->resolve($loop[static::VARIABLE_FROM]);
+            $binding = (new Resolver($bindings, $functions))->resolve($loop[static::VARIABLE_FROM]);
             if (!is_array($binding)) {
                 throw new UnexpectedValueException("The for-loop variable '{$loop[static::VARIABLE_FROM]}' must be an array, but is not.");
             }

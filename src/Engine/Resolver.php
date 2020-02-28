@@ -9,11 +9,18 @@ use ricwein\Templater\Exceptions\RuntimeException;
 class Resolver
 {
     private array $bindings;
+
+    /**
+     * @var BaseFunction[]
+     */
+    private array $functions;
+
     private static ?array $operators = null;
 
-    public function __construct(array $bindings = [])
+    public function __construct(array $bindings = [], array $functions = [])
     {
         $this->bindings = $bindings;
+        $this->functions = $functions;
     }
 
     /**
@@ -118,6 +125,66 @@ class Resolver
         }
     }
 
+    private function getFunction(string $name): ?BaseFunction
+    {
+        if (isset($this->functions[$name])) {
+            return $this->functions[$name];
+        }
+
+        foreach ($this->functions as $function) {
+            if ($function->getShortName() === $name) {
+                return $function;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array $parts
+     * @return array|mixed
+     * @throws RuntimeException
+     */
+    private function resolveFunctionPipes(array $parts)
+    {
+        // evaluate start value
+        $value = $this->resolve(array_shift($parts));
+
+        // iterate through function pipes
+        foreach ($parts as $functionString) {
+            $splitted = static::splitContextStringBy('(', $functionString, true);
+            $name = trim($splitted[0]);
+
+            if (null === $function = $this->getFunction($name)) {
+                throw new RuntimeException("Invalid call to function '{$name}()'. No function found with this name.", 500);
+            }
+
+            $requiredParameters = $function->getNumberOfRequiredParameters();
+
+            $parameters = [];
+            if (count($splitted) > 1) {
+                $parameters = array_filter(array_map('trim', static::splitContextStringBy(',', rtrim($splitted[1], ')'))), function (string $var): bool {
+                    return !empty($var);
+                });
+            }
+
+            try {
+                if (count($parameters) < ($requiredParameters - 1)) {
+                    throw new RuntimeException(sprintf("Too few arguments to function %s(), %d passed and exactly %d expected.", $name, count($splitted), $requiredParameters), 500);
+                }
+
+                $value = $function->call(array_merge([$value], array_map(function (string $var) {
+                    return $this->resolve($var);
+                }, $parameters)));
+            } catch (\TypeError $exception) {
+                throw new RuntimeException("Function parameter type mismatch!", 500, $exception);
+            }
+
+
+        }
+        return $value;
+    }
+
     /**
      * Resolves variable path to final value.
      * @param string $variableName
@@ -126,7 +193,13 @@ class Resolver
      */
     private function resolveVarPathToValue(string $variableName)
     {
-        $variablePath = static::splitContextStringBy('.', trim($variableName));
+        $variableName = trim($variableName);
+        $parts = static::splitContextStringBy('|', $variableName);
+        if (count($parts) > 1) {
+            return static::resolveFunctionPipes($parts);
+        }
+
+        $variablePath = static::splitContextStringBy('.', $variableName);
 
         // iterate vertically through bindings
         // where $current is always a subset of the previous iterations $current
@@ -344,7 +417,7 @@ class Resolver
         return $openBlocks;
     }
 
-    private static function splitContextStringBy(string $delimiter, string $string): array
+    private static function splitContextStringBy(string $delimiter, string $string, bool $abortAfterFirstMatch = false): array
     {
         $array = [];
         $delimiterLen = strlen($delimiter);
@@ -358,6 +431,10 @@ class Resolver
                 if (empty($openBlocks) && $delimiter === substr($string, $offset, $delimiterLen)) {
                     $body = substr($string, 0, $offset);
                     $string = trim(substr($string, $offset + 1));
+
+                    if ($abortAfterFirstMatch) {
+                        return [trim($body), trim($string)];
+                    }
                     break;
                 }
 

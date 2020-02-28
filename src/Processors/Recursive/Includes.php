@@ -7,11 +7,12 @@ namespace ricwein\Templater\Processors\Recursive;
 
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\Templater\Config;
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\Exception;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
-use ricwein\Templater\RecursiveProcessor;
+use ricwein\Templater\Processors\RecursiveProcessor;
 use ricwein\Templater\Templater;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Helper\Constraint;
@@ -31,22 +32,36 @@ class Includes extends RecursiveProcessor
         $this->templateBaseDir = $templateBaseDir;
     }
 
-    public function process(array $bindings = []): self
+    /**
+     * @param array $bindings
+     * @param BaseFunction[] $functions
+     * @return $this
+     */
+    public function process(array $bindings = [], array $functions = []): self
     {
         if (preg_match('/{%\s*include\s*(.+)\s*%}/', $this->content) === 1) {
-            $this->content = $this->includeTemplate($this->templateBaseDir, null, $this->content, $bindings, 0);
+            $this->content = $this->includeTemplate($this->templateBaseDir, null, $this->content, $bindings, $functions, 0);
             $this->matchedAction = true;
         }
 
         return $this;
     }
 
-    protected function includeTemplate(Directory $baseDir, ?Directory $relativeDir, string $content, array $bindings, int $currentDepth): string
+    /**
+     * @param Directory $baseDir
+     * @param Directory|null $relativeDir
+     * @param string $content
+     * @param array $bindings
+     * @param BaseFunction[] $functions
+     * @param int $currentDepth
+     * @return string
+     */
+    protected function includeTemplate(Directory $baseDir, ?Directory $relativeDir, string $content, array $bindings, array $functions, int $currentDepth): string
     {
         // include other template files
-        $content = preg_replace_callback('/{%\s*include\s*(.+)\s*%}/U', function ($match) use ($baseDir, $relativeDir, $currentDepth, $bindings) {
+        $content = preg_replace_callback('/{%\s*include\s*(.+)\s*%}/U', function ($match) use ($baseDir, $relativeDir, $currentDepth, $bindings, $functions) {
 
-            $filename = (new Resolver($bindings))->resolve(trim($match[1]));
+            $filename = (new Resolver($bindings, $functions))->resolve(trim($match[1]));
             $includeFile = Templater::getTemplateFile($baseDir, $relativeDir, $filename, $this->config->fileExtension);
             if ($includeFile === null) {
                 throw new FileNotFoundException("template '{$filename}' not found", 404);
@@ -56,7 +71,7 @@ class Includes extends RecursiveProcessor
             $fileDir = $includeFile->directory(Constraint::IN_OPENBASEDIR);
 
             try {
-                $blockProcessor = (new BlockExtensions($fileContent, $this->config, $baseDir))->process($bindings, $fileDir);
+                $blockProcessor = (new BlockExtensions($fileContent, $this->config, $baseDir))->process($bindings, $functions, $fileDir);
                 $fileContent = $blockProcessor->getResult();
             } catch (Exception $exception) {
                 throw new TemplatingException("Error rendering Template: {$includeFile->path()->filepath}", 500, $exception);
@@ -72,6 +87,7 @@ class Includes extends RecursiveProcessor
                 $fileDir,
                 trim($fileContent, PHP_EOL),
                 $bindings,
+                $functions,
                 $currentDepth + 1
             );
         }, $content);

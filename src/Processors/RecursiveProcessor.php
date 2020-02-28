@@ -1,8 +1,6 @@
 <?php
 
-
-namespace ricwein\Templater;
-
+namespace ricwein\Templater\Processors;
 
 abstract class RecursiveProcessor extends Processor
 {

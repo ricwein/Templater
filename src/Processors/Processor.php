@@ -3,7 +3,7 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater;
+namespace ricwein\Templater\Processors;
 
 /**
  * provide base worker

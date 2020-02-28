@@ -9,6 +9,7 @@ use Phpfastcache\Core\Pool\ExtendedCacheItemPoolInterface;
 use Phpfastcache\Exceptions\PhpfastcacheInvalidArgumentException;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\AssetParser;
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
@@ -17,7 +18,6 @@ use ricwein\FileSystem\Exceptions\Exception;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Processor;
 
 /**
  * simple Template parser with Twig-like syntax
@@ -46,10 +46,15 @@ class Assets extends Processor
         $this->cache = $cache;
     }
 
-    public function process(array $bindings = []): self
+    /**
+     * @param array $bindings
+     * @param BaseFunction[] $functions
+     * @return $this
+     */
+    public function process(array $bindings = [], array $functions = []): self
     {
         // include other template files
-        $this->content = preg_replace_callback('/{{\s*asset\((.*)(\s*,\s*.+)?\)\s*}}/U', function (array $match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*asset\((.*)(\s*,\s*.+)?\)\s*}}/U', function (array $match) use ($bindings, $functions): string {
 
             $matchCount = count($match);
             if ($matchCount < 2 || $matchCount > 3) {
@@ -57,7 +62,7 @@ class Assets extends Processor
             }
 
             $flags = static::getFlags($match);
-            $filename = (new Resolver($bindings))->resolve(trim($match[1]));
+            $filename = (new Resolver($bindings, $functions))->resolve(trim($match[1]));
 
             return $this->buildAssetHTML($filename, $flags, $bindings);
 

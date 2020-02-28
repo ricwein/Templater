@@ -6,7 +6,6 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
-use ricwein\Templater\Processor;
 
 /**
  * trims html output

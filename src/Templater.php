@@ -17,6 +17,8 @@ use ricwein\FileSystem\Exceptions\UnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Storage;
+use ricwein\Templater\Engine\BaseFunction;
+use ricwein\Templater\Engine\DefaultFunctions;
 use ricwein\Templater\Exceptions\RuntimeException as TemplateRuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Processors;
@@ -31,6 +33,8 @@ class Templater
 
     protected Config $config;
     protected ?ExtendedCacheItemPoolInterface $cache = null;
+
+    private array $functions = [];
 
     /**
      * @param Config $config
@@ -63,6 +67,21 @@ class Templater
             }
             $this->assetsDir = $assetDir;
         }
+
+        $this->loadDefaultFunctions();
+    }
+
+    private function loadDefaultFunctions()
+    {
+        foreach ((new DefaultFunctions($this->config))->get() as $function) {
+            $this->addFunction($function);
+        }
+    }
+
+    public function addFunction(BaseFunction $function): self
+    {
+        $this->functions[$function->getName()] = $function;
+        return $this;
     }
 
     /**
@@ -198,11 +217,11 @@ class Templater
         // repeat until all blocks and includes are resolved
         do {
 
-            $blockProcessor = (new Processors\Recursive\BlockExtensions($content, $this->config, $this->templateDir))->process($bindings);
+            $blockProcessor = (new Processors\Recursive\BlockExtensions($content, $this->config, $this->templateDir))->process($bindings, $this->functions);
             $hasReplacedBlocks = $blockProcessor->hasMatched();
             $content = $blockProcessor->getResult();
 
-            $includeProcessor = (new Processors\Recursive\Includes($content, $this->config, $this->templateDir))->process($bindings);
+            $includeProcessor = (new Processors\Recursive\Includes($content, $this->config, $this->templateDir))->process($bindings, $this->functions);
             $hasReplacedIncludes = $includeProcessor->hasMatched();
             $content = $includeProcessor->getResult();
 
@@ -213,7 +232,7 @@ class Templater
         $content = (new Processors\Comments($content, $this->config))->process()->getResult();
 
         if ($this->assetsDir !== null) {
-            $content = (new Processors\Assets($content, $this->config, $this->assetsDir, $this->cache))->process($bindings)->getResult();
+            $content = (new Processors\Assets($content, $this->config, $this->assetsDir, $this->cache))->process($bindings, $this->functions)->getResult();
         }
 
         return $content;
@@ -230,17 +249,12 @@ class Templater
         $bindings = array_replace_recursive($bindings, (array)$this->config->variables);
 
         // preprocessing
-        $content = (new Processors\SetBindings($content))->process($bindings)->getResult();
-        $content = (new Processors\ForLoop($content))->process($bindings)->getResult();
-        $content = (new Processors\IfStatement($content, $this->config))->process($bindings)->getResult();
-
-        // apply functions
-        $content = (new Processors\Functions\Implode($content, $this->config))->process($bindings)->getResult();
-        $content = (new Processors\Functions\Date($content, $this->config))->process($bindings)->getResult();
-        $content = (new Processors\Functions\DebugDump($content, $this->config))->process($bindings)->getResult();
+        $content = (new Processors\SetBindings($content))->process($bindings, $this->functions)->getResult();
+        $content = (new Processors\ForLoop($content))->process($bindings, $this->functions)->getResult();
+        $content = (new Processors\IfStatement($content, $this->config))->process($bindings, $this->functions)->getResult();
 
         // fill remaining variables
-        $content = (new Processors\Bindings($content, $this->config))->process($bindings)->getResult();
+        $content = (new Processors\Bindings($content, $this->config))->process($bindings, $this->functions)->getResult();
 
         // postprocessing
         $content = (new Processors\Minify($content, $this->config))->process()->getResult();

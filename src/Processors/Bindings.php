@@ -6,9 +6,9 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
-use ricwein\Templater\Processor;
 
 /**
  * replaces twig variables with values from arrays or objects
@@ -23,13 +23,18 @@ class Bindings extends Processor
         $this->config = $config;
     }
 
-    public function process($bindings = []): self
+    /**
+     * @param array $bindings
+     * @param BaseFunction[] $functions
+     * @return $this
+     */
+    public function process($bindings = [], array $functions = []): self
     {
         // replace all variables
-        $this->content = preg_replace_callback('/{{\s*(.+)\s*}}/U', function (array $match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*(.+)\s*}}/U', function (array $match) use ($bindings, $functions): string {
 
             try {
-                $current = (new Resolver($bindings))->resolve($match[1]);
+                $current = (new Resolver($bindings, $functions))->resolve($match[1]);
             } catch (RuntimeException $exception) {
                 if ($this->config->debug) {
                     throw $exception;

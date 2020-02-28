@@ -4,10 +4,10 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Exceptions\Exception;
-use ricwein\Templater\Processor;
 
 class IfStatement extends Processor
 {
@@ -27,13 +27,14 @@ class IfStatement extends Processor
 
     /**
      * @param array $bindings
+     * @param BaseFunction[] $functions
      * @return $this
      * @throws Exception
      * @throws UnexpectedValueException
      */
-    public function process(array $bindings = []): self
+    public function process(array $bindings = [], array $functions = []): self
     {
-        $resolver = new Resolver($bindings);
+        $resolver = new Resolver($bindings, $functions);
         while ($stmt = $this->getNextValidIfStatements($this->content)) {
 
             foreach ($stmt[static::BRANCHES] as $branch) {

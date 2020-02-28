@@ -11,10 +11,11 @@ use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException
 use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
 use ricwein\FileSystem\Helper\Constraint;
 use ricwein\Templater\Config;
+use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
-use ricwein\Templater\RecursiveProcessor;
+use ricwein\Templater\Processors\RecursiveProcessor;
 use ricwein\Templater\Templater;
 
 class BlockExtensions extends RecursiveProcessor
@@ -38,6 +39,7 @@ class BlockExtensions extends RecursiveProcessor
 
     /**
      * @param array $bindings
+     * @param BaseFunction[] $functions
      * @param Directory|null $relativeDir
      * @return BlockExtensions
      * @throws AccessDeniedException
@@ -49,10 +51,10 @@ class BlockExtensions extends RecursiveProcessor
      * @throws RuntimeException
      * @throws UnexpectedValueException
      */
-    public function process(array $bindings = [], ?Directory $relativeDir = null): self
+    public function process(array $bindings = [], array $functions = [], ?Directory $relativeDir = null): self
     {
         if (null !== $matches = static::getMatches($this->content)) {
-            $this->content = $this->extendsBlocks($matches, $this->templateBaseDir, $relativeDir, $this->content, $bindings, 0, []);
+            $this->content = $this->extendsBlocks($matches, $this->templateBaseDir, $relativeDir, $this->content, $bindings, $functions, 0, []);
             $this->matchedAction = true;
         }
 
@@ -79,24 +81,25 @@ class BlockExtensions extends RecursiveProcessor
      * @param Directory|null $relativeDir
      * @param string $content
      * @param array $bindings
+     * @param BaseFunction[] $functions
      * @param int $currentDepth
      * @param array $openBlocks
      * @return string
      * @throws AccessDeniedException
      * @throws ConstraintsException
      * @throws FileNotFoundException
+     * @throws FileSystemException
      * @throws FileSystemRuntimeException
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      * @throws UnexpectedValueException
-     * @throws FileSystemException
      */
-    private function extendsBlocks(array $matches, Directory $baseDir, ?Directory $relativeDir, string $content, array $bindings, int $currentDepth, array $openBlocks): string
+    private function extendsBlocks(array $matches, Directory $baseDir, ?Directory $relativeDir, string $content, array $bindings, array $functions, int $currentDepth, array $openBlocks): string
     {
         // look for {% block ... %} statements in the extended base template
         foreach ($matches as $extendsTemplateFile) {
 
-            $baseTemplateName = (new Resolver($bindings))->resolve(trim($extendsTemplateFile));
+            $baseTemplateName = (new Resolver($bindings, $functions))->resolve(trim($extendsTemplateFile));
             $baseTemplateFile = Templater::getTemplateFile($baseDir, $relativeDir, $baseTemplateName, $this->config->fileExtension);
             if ($baseTemplateFile === null) {
                 throw new FileNotFoundException("BaseTemplate '{$baseTemplateName}' not found", 404);
@@ -162,6 +165,7 @@ class BlockExtensions extends RecursiveProcessor
                     $baseTemplateFile->directory(Constraint::IN_OPENBASEDIR),
                     $content,
                     $bindings,
+                    $functions,
                     $currentDepth + 1,
                     $openBlocks
                 );
