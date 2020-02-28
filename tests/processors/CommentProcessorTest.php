@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 use ricwein\Templater\Config;
-use ricwein\Templater\Processor;
+use ricwein\Templater\Processors;
 
 class CommentProcessorTest extends TestCase
 {
@@ -18,10 +18,9 @@ class CommentProcessorTest extends TestCase
     public function testCommentStripping()
     {
         $config = new Config(['stripComments' => true]);
-        $processor = new Processor\Comments($config);
 
         foreach (static::$tests as $test => $expectations) {
-            $result = $processor->replace($test);
+            $result = (new Processors\Comments($test, $config))->process()->getResult();
             $this->assertSame($expectations[0], $result);
         }
     }
@@ -29,10 +28,9 @@ class CommentProcessorTest extends TestCase
     public function testCommentConversion()
     {
         $config = new Config(['stripComments' => false]);
-        $processor = new Processor\Comments($config);
 
         foreach (static::$tests as $test => $expectations) {
-            $result = $processor->replace($test);
+            $result = (new Processors\Comments($test, $config))->process()->getResult();
             $this->assertSame($expectations[1], $result);
         }
     }

@@ -3,34 +3,30 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
 use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Processor;
 
 /**
  * replaces twig variables with values from arrays or objects
  */
-class Bindings extends Worker
+class Bindings extends Processor
 {
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
-    /**
-     * @param string $content
-     * @param array|object|null $bindings variables to be replaced
-     * @return string
-     */
-    public function replace(string $content, $bindings = []): string
+    public function process($bindings = []): self
     {
         // replace all variables
-        $content = preg_replace_callback('/{{\s*(.+)\s*}}/U', function (array $match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*(.+)\s*}}/U', function (array $match) use ($bindings): string {
 
             try {
                 $current = (new Resolver($bindings))->resolve($match[1]);
@@ -57,8 +53,8 @@ class Bindings extends Worker
             }
 
             return '';
-        }, $content);
+        }, $this->content);
 
-        return $content;
+        return $this;
     }
 }

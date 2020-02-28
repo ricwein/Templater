@@ -19,6 +19,7 @@ use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Exceptions\RuntimeException as TemplateRuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
+use ricwein\Templater\Processors;
 
 /**
  * simple Template parser with Twig-like syntax
@@ -108,6 +109,11 @@ class Templater
         }
     }
 
+    /**
+     * @param File $file
+     * @return string
+     * @throws RuntimeException
+     */
     public static function getCacheKeyFor(File $file): string
     {
         return sprintf(
@@ -133,7 +139,7 @@ class Templater
     public function render(string $templateName, array $bindings = [], callable $filter = null): string
     {
         try {
-            $templateFile = static::getTemplateFile($this->templateDir, $templateName, $this->config->fileExtension);
+            $templateFile = static::getTemplateFile($this->templateDir, null, $templateName, $this->config->fileExtension);
         } catch (Exception $exception) {
             throw new FileNotFoundException("Error opening template: {$templateName}.", 404, $exception);
         }
@@ -163,18 +169,51 @@ class Templater
         // load template from file
         $content = $templateFile->read();
 
-        // run parsers
-        $content = (new Processor\BlockExtension($this->config, $this->templateDir))->replace($content, $bindings);
-        $content = (new Processor\Includes($this->config, $this->templateDir))->replace($content, $bindings);
-        $content = (new Processor\Comments($this->config))->replace($content);
+        $content = $this->buildBaseTemplate($content, $bindings);
 
-        if ($this->assetsDir !== null) {
-            $content = (new Processor\Assets($this->config, $this->assetsDir, $this->cache))->replace($content, $bindings);
-        }
 
         // run user-defined filters above content
         if ($filter !== null) {
-            $content = call_user_func_array($filter, [$content, $this]);
+            $content = call_user_func_array($filter, [$content]);
+        }
+
+        return $content;
+    }
+
+    /**
+     * @param string $content
+     * @param array $bindings
+     * @return string
+     * @throws AccessDeniedException
+     * @throws ConstraintsException
+     * @throws Exceptions\UnexpectedValueException
+     * @throws FileNotFoundException
+     * @throws FileSystemException
+     * @throws RuntimeException
+     * @throws TemplateRuntimeException
+     * @throws UnexpectedValueException
+     */
+    protected function buildBaseTemplate(string $content, array $bindings): string
+    {
+        // repeat until all blocks and includes are resolved
+        do {
+
+            $blockProcessor = (new Processors\Recursive\BlockExtensions($content, $this->config, $this->templateDir))->process($bindings);
+            $hasReplacedBlocks = $blockProcessor->hasMatched();
+            $content = $blockProcessor->getResult();
+
+            $includeProcessor = (new Processors\Recursive\Includes($content, $this->config, $this->templateDir))->process($bindings);
+            $hasReplacedIncludes = $includeProcessor->hasMatched();
+            $content = $includeProcessor->getResult();
+
+        } while ($hasReplacedBlocks || $hasReplacedIncludes);
+
+        // cleanup remaining un-extended blocks
+        $content = (new Processors\Recursive\BlockExtensions($content, $this->config, $this->templateDir))->cleanup()->getResult();
+        $content = (new Processors\Comments($content, $this->config))->process()->getResult();
+
+        if ($this->assetsDir !== null) {
+            $content = (new Processors\Assets($content, $this->config, $this->assetsDir, $this->cache))->process($bindings)->getResult();
         }
 
         return $content;
@@ -190,45 +229,52 @@ class Templater
     {
         $bindings = array_replace_recursive($bindings, (array)$this->config->variables);
 
-        $content = (new Processor\SetBindings())->replace($content, $bindings);
-        $content = (new Processor\ForLoop())->replace($content, $bindings);
-        $content = (new Processor\IfStatement($this->config))->replace($content, $bindings);
+        // preprocessing
+        $content = (new Processors\SetBindings($content))->process($bindings)->getResult();
+        $content = (new Processors\ForLoop($content))->process($bindings)->getResult();
+        $content = (new Processors\IfStatement($content, $this->config))->process($bindings)->getResult();
 
-        $content = (new Processor\Implode($this->config))->replace($content, $bindings);
-        $content = (new Processor\Date($this->config))->replace($content, $bindings);
+        // apply functions
+        $content = (new Processors\Functions\Implode($content, $this->config))->process($bindings)->getResult();
+        $content = (new Processors\Functions\Date($content, $this->config))->process($bindings)->getResult();
+        $content = (new Processors\Functions\DebugDump($content, $this->config))->process($bindings)->getResult();
 
-        $content = (new Processor\DebugDump($this->config))->replace($content, $bindings);
-        $content = (new Processor\Bindings($this->config))->replace($content, $bindings);
-        $content = (new Processor\Minify($this->config))->replace($content);
+        // fill remaining variables
+        $content = (new Processors\Bindings($content, $this->config))->process($bindings)->getResult();
+
+        // postprocessing
+        $content = (new Processors\Minify($content, $this->config))->process()->getResult();
 
         return $content;
     }
 
-
     /**
-     * @param Directory $dir
+     * @param Directory $baseDir
+     * @param Directory $relativeDir
      * @param string $filename
      * @param string $extension
      * @return File|null
-     * @throws ConstraintsException
      * @throws AccessDeniedException
-     * @throws Exception
+     * @throws ConstraintsException
+     * @throws FileSystemException
      * @throws RuntimeException
      */
-    public static function getTemplateFile(Directory $dir, string $filename, string $extension): ?File
+    public static function getTemplateFile(Directory $baseDir, ?Directory $relativeDir, string $filename, string $extension): ?File
     {
-        $files = [
-            $dir->file($filename),
-            $dir->file("{$filename}{$extension}"),
-        ];
+        /** @var Directory[] $dirs */
+        $dirs = array_filter([$baseDir, $relativeDir], function (?Directory $dir): bool {
+            return $dir !== null;
+        });
 
-        foreach ($files as $file) {
-            if ($file->isFile()) {
-                return $file;
+        foreach ($dirs as $dir) {
+            foreach ([$filename, "{$filename}{$extension}"] as $filenameVariation) {
+                $file = $dir->file($filenameVariation);
+                if ($file->isFile()) {
+                    return $file;
+                }
             }
         }
 
         return null;
     }
-
 }

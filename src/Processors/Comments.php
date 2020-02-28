@@ -3,38 +3,34 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
-use ricwein\Templater\Engine\Worker;
+use ricwein\Templater\Processor;
 
 /**
  * simple Template parser with Twig-like syntax
  */
-class Comments extends Worker
+class Comments extends Processor
 {
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
-
-    /**
-     * @param string $content
-     * @return string
-     */
-    public function replace(string $content): string
+    public function process(): self
     {
-        return preg_replace_callback('/{#\s*(.*)\s*#}/Us', function (array $match): string {
-
+        $this->content = preg_replace_callback('/{#\s*(.*)\s*#}/Us', function (array $match): string {
             if (!$this->config->stripComments && isset($match[1]) && !empty($match[1])) {
                 return sprintf("<!-- %s -->", trim($match[1]));
             }
 
             return '';
+        }, $this->content);
 
-        }, $content);
+        return $this;
     }
 }

@@ -3,31 +3,28 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Config;
-use ricwein\Templater\Engine\Worker;
+use ricwein\Templater\Processor;
 
 /**
  * trims html output
  */
-class Minify extends Worker
+class Minify extends Processor
 {
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
-    /**
-     * @param string $content
-     * @return string
-     */
-    public function replace(string $content): string
+    public function process(): self
     {
         if ($this->config->debug) {
-            return $content;
+            return $this;
         }
 
         $regexReplaces = [
@@ -37,6 +34,12 @@ class Minify extends Worker
             '/<!--(.|\s)*?-->/' => '', // Remove HTML comments
         ];
 
-        return trim(preg_replace(array_keys($regexReplaces), array_values($regexReplaces), $content));
+        $this->content = trim(preg_replace(
+            array_keys($regexReplaces),
+            array_values($regexReplaces),
+            $this->content
+        ));
+
+        return $this;
     }
 }

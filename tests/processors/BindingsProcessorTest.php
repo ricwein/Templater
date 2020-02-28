@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 use ricwein\Templater\Config;
-use ricwein\Templater\Processor;
+use ricwein\Templater\Processors;
 
 class BindingsProcessorTest extends TestCase
 {
@@ -13,10 +13,9 @@ class BindingsProcessorTest extends TestCase
             "Test1: {{ 'success' }} done" => "Test1: success done",
             "Test2: {{ true }}" => "Test2: 1"
         ];
-        $processor = new Processor\Bindings(new Config(['debug' => true]));
 
         foreach ($tests as $input => $expectation) {
-            $resolved = $processor->replace($input);
+            $resolved = (new Processors\Bindings($input, new Config(['debug' => true])))->process()->getResult();
             $this->assertSame($expectation, $resolved);
         }
     }

@@ -3,30 +3,31 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors\Functions;
 
 use Exception;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\Processor;
 
 /**
  * implode method, allowing array joining with given glue
  */
-class Date extends Worker
+class Date extends Processor
 {
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = []): self
     {
         // replace all variables
-        $content = preg_replace_callback('/{{\s*([^}]+)\|\s*date\((.+)\)\s*}}/Us', function ($match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*([^}]+)\|\s*date\((.+)\)\s*}}/Us', function ($match) use ($bindings): string {
 
             try {
                 $resolver = new Resolver($bindings);
@@ -51,8 +52,8 @@ class Date extends Worker
                 return '';
             }
 
-        }, $content);
+        }, $this->content);
 
-        return $content;
+        return $this;
     }
 }

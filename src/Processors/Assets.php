@@ -3,7 +3,7 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use Phpfastcache\Core\Pool\ExtendedCacheItemPoolInterface;
 use Phpfastcache\Exceptions\PhpfastcacheInvalidArgumentException;
@@ -17,12 +17,12 @@ use ricwein\FileSystem\Exceptions\Exception;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Engine\Worker;
+use ricwein\Templater\Processor;
 
 /**
  * simple Template parser with Twig-like syntax
  */
-class Assets extends Worker
+class Assets extends Processor
 {
     const FLAG_INLINE = 'inline';
 
@@ -38,17 +38,18 @@ class Assets extends Worker
     private Config $config;
     private Directory $basedir;
 
-    public function __construct(Config $config, Directory $basedir, ?ExtendedCacheItemPoolInterface $cache = null)
+    public function __construct(string $content, Config $config, Directory $basedir, ?ExtendedCacheItemPoolInterface $cache = null)
     {
+        parent::__construct($content);
         $this->config = $config;
         $this->basedir = $basedir;
         $this->cache = $cache;
     }
 
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = []): self
     {
         // include other template files
-        return preg_replace_callback('/{{\s*asset\((.*)(\s*,\s*.+)?\)\s*}}/U', function (array $match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*asset\((.*)(\s*,\s*.+)?\)\s*}}/U', function (array $match) use ($bindings): string {
 
             $matchCount = count($match);
             if ($matchCount < 2 || $matchCount > 3) {
@@ -60,7 +61,9 @@ class Assets extends Worker
 
             return $this->buildAssetHTML($filename, $flags, $bindings);
 
-        }, $content);
+        }, $this->content);
+
+        return $this;
     }
 
     private static function getFlags(array $matches): array

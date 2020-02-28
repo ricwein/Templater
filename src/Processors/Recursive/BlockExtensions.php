@@ -1,28 +1,23 @@
 <?php
-/**
- * @author Richard Weinhold
- */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors\Recursive;
 
-use ricwein\FileSystem\File;
-use ricwein\Templater\Config;
-use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
-use ricwein\Templater\Exceptions\RuntimeException;
-use ricwein\Templater\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Templater;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
 use ricwein\FileSystem\Exceptions\ConstraintsException;
-use ricwein\FileSystem\Exceptions\Exception;
+use ricwein\FileSystem\Exceptions\Exception as FileSystemException;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException;
+use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
+use ricwein\FileSystem\Helper\Constraint;
+use ricwein\Templater\Config;
+use ricwein\Templater\Engine\Resolver;
+use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\RecursiveProcessor;
+use ricwein\Templater\Templater;
 
-/**
- * simple Template parser with Twig-like syntax
- */
-class BlockExtension extends Worker
+class BlockExtensions extends RecursiveProcessor
 {
     const ORIGIN = 'origin';
     const NAME = 'name';
@@ -31,33 +26,57 @@ class BlockExtension extends Worker
     const OFFSET = 'offset';
 
     private Config $config;
-    private Directory $basedir;
+    private Directory $templateBaseDir;
 
-    public function __construct(Config $config, Directory $templateDir)
+    public function __construct(string $content, Config $config, Directory $templateBaseDir)
     {
+        parent::__construct($content);
+
         $this->config = $config;
-        $this->basedir = $templateDir;
+        $this->templateBaseDir = $templateBaseDir;
     }
 
     /**
-     * @param string $content
      * @param array $bindings
-     * @return string
+     * @param Directory|null $relativeDir
+     * @return BlockExtensions
      * @throws AccessDeniedException
      * @throws ConstraintsException
-     * @throws Exception
      * @throws FileNotFoundException
+     * @throws FileSystemException
      * @throws FileSystemRuntimeException
+     * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      * @throws UnexpectedValueException
      */
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = [], ?Directory $relativeDir = null): self
     {
-        return $this->extendsBlocks($this->basedir, $content, $bindings, 0, []);
+        if (null !== $matches = static::getMatches($this->content)) {
+            $this->content = $this->extendsBlocks($matches, $this->templateBaseDir, $relativeDir, $this->content, $bindings, 0, []);
+            $this->matchedAction = true;
+        }
+
+        return $this;
     }
 
     /**
-     * @param Directory $basedir
+     * @return $this
+     * @throws UnexpectedValueException
+     */
+    public function cleanup(): self
+    {
+        $remainingBlocks = static::getBlocks($this->content);
+        foreach ($remainingBlocks as $block) {
+            $this->content = str_replace($block[static::ORIGIN], $block[static::CONTENT], $this->content);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param array $matches
+     * @param Directory $baseDir
+     * @param Directory|null $relativeDir
      * @param string $content
      * @param array $bindings
      * @param int $currentDepth
@@ -65,35 +84,27 @@ class BlockExtension extends Worker
      * @return string
      * @throws AccessDeniedException
      * @throws ConstraintsException
-     * @throws Exception
      * @throws FileNotFoundException
      * @throws FileSystemRuntimeException
-     * @throws UnexpectedValueException
+     * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws FileSystemException
      */
-    private function extendsBlocks(Directory $basedir, string $content, array $bindings, int $currentDepth, array $openBlocks): string
+    private function extendsBlocks(array $matches, Directory $baseDir, ?Directory $relativeDir, string $content, array $bindings, int $currentDepth, array $openBlocks): string
     {
-        // match for all {% extends ... %} blocks
-        if (false === preg_match_all('/{%\s*extends\s*(.+)\s*%}/', $content, $extendsMatches)) {
-            return $content;
-        } elseif (count($extendsMatches) !== 2) {
-            return $content;
-        } elseif (empty($extendsMatches[0])) {
-            return $content;
-        }
-
         // look for {% block ... %} statements in the extended base template
-        foreach ($extendsMatches[1] as $extendsTemplateFile) {
+        foreach ($matches as $extendsTemplateFile) {
 
             $baseTemplateName = (new Resolver($bindings))->resolve(trim($extendsTemplateFile));
-            $baseTemplateFile = Templater::getTemplateFile($basedir, $baseTemplateName, $this->config->fileExtension);
+            $baseTemplateFile = Templater::getTemplateFile($baseDir, $relativeDir, $baseTemplateName, $this->config->fileExtension);
             if ($baseTemplateFile === null) {
                 throw new FileNotFoundException("BaseTemplate '{$baseTemplateName}' not found", 404);
             }
 
             $baseTemplate = $baseTemplateFile->read();
-            $baseBlocks = $this->getBlocks($baseTemplate);
-            $currentBlocks = array_merge($this->getBlocks($content), $openBlocks);
+            $baseBlocks = static::getBlocks($baseTemplate);
+            $currentBlocks = array_merge(static::getBlocks($content), $openBlocks);
 
             usort($currentBlocks, function (array $lhs, array $rhs): int {
                 return $rhs[static::CONTAINS_NESTED_LEVEL] - $lhs[static::CONTAINS_NESTED_LEVEL];
@@ -139,18 +150,38 @@ class BlockExtension extends Worker
             $openBlocks = $currentBlocks;
 
             // handle recursive extensions
-            if ($currentDepth <= (self::MAX_DEPTH - 2)) {
-                $content = $this->extendsBlocks($basedir, $content, $bindings, $currentDepth + 1, $openBlocks);
+            if (null !== $matches = static::getMatches($content)) {
+
+                if ($currentDepth > static::MAX_DEPTH) {
+                    throw new RuntimeException(sprintf("Exceeded template extension maximum depth of % d iterations . ", static::MAX_DEPTH), 400);
+                }
+
+                $content = $this->extendsBlocks(
+                    $matches,
+                    $baseDir,
+                    $baseTemplateFile->directory(Constraint::IN_OPENBASEDIR),
+                    $content,
+                    $bindings,
+                    $currentDepth + 1,
+                    $openBlocks
+                );
             }
         }
 
-        // remove remaining blocks
-        $remainingBlocks = $this->getBlocks($content);
-        foreach ($remainingBlocks as $block) {
-            $content = str_replace($block[static::ORIGIN], $block[static::CONTENT], $content);
+        return $content;
+    }
+
+    private static function getMatches(string $content): ?array
+    {
+        if (1 !== preg_match_all('/{%\s*extends\s*(.+)\s*%}/', $content, $matches)) {
+            return null;
+        } elseif (count($matches) !== 2) {
+            return null;
+        } elseif (empty($matches[0])) {
+            return null;
         }
 
-        return $content;
+        return $matches[1];
     }
 
     /**
@@ -158,7 +189,7 @@ class BlockExtension extends Worker
      * @return array
      * @throws UnexpectedValueException
      */
-    private function getBlockMatches(string $content): array
+    private static function getBlockMatches(string $content): array
     {
         $openBlockMatches = [];
         $closeBlockMatches = [];
@@ -205,7 +236,7 @@ class BlockExtension extends Worker
      * @return array
      * @throws UnexpectedValueException
      */
-    private function matchBlockPairs(array $blockList, string $content): array
+    private static function matchBlockPairs(array $blockList, string $content): array
     {
         $openBlocks = [];
         $blocks = [];
@@ -247,14 +278,14 @@ class BlockExtension extends Worker
 
                 $blocks[] = [
                     static::ORIGIN => $blockOrigin,
-                    static::CONTENT => $blockContent,
+                    static::CONTENT => trim($blockContent, PHP_EOL),
                     static::NAME => $lastOpenBlock['name'],
                     static::CONTAINS_NESTED_LEVEL => $lastOpenBlock['nesting'],
                     static::OFFSET => $blockOriginStart,
                 ];
 
             } else {
-                throw new UnexpectedValueException("unable to find 'block'-start for endblock");
+                throw new UnexpectedValueException("unable to find 'block' - start for endblock");
             }
         }
 
@@ -272,14 +303,13 @@ class BlockExtension extends Worker
      * @return array
      * @throws UnexpectedValueException
      */
-    private function getBlocks(string $content): array
+    private static function getBlocks(string $content): array
     {
-        $blockList = $this->getBlockMatches($content);
+        $blockList = static::getBlockMatches($content);
         if (empty($blockList)) {
             return [];
         }
 
-        return $this->matchBlockPairs($blockList, $content);
+        return static::matchBlockPairs($blockList, $content);
     }
-
 }

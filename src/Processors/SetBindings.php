@@ -1,22 +1,21 @@
 <?php
 
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
 use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Processor;
 
-class SetBindings extends Worker
+class SetBindings extends Processor
 {
     /**
-     * @param string $content
      * @param array|null &$bindings
-     * @return string
+     * @return $this
      */
-    public function replace(string $content, ?array &$bindings = null): string
+    public function process(?array &$bindings = null): self
     {
-        $content = preg_replace_callback('/{%\s*set\s+(.+)\s*=\s*(.+)\s*%}/', function (array $match) use (&$bindings): string {
+        $this->content = preg_replace_callback('/{%\s*set\s+(.+)\s*=\s*(.+)\s*%}/', function (array $match) use (&$bindings): string {
 
             if (count($match) !== 3) {
                 throw new RuntimeException('Invalid match-count for {% set %} processing.', 500);
@@ -32,9 +31,9 @@ class SetBindings extends Worker
             $bindings = array_replace_recursive($bindings, $variable);
 
             return '';
-        }, $content);
+        }, $this->content);
 
-        return $content;
+        return $this;
     }
 
 

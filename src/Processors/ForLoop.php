@@ -3,17 +3,17 @@
  * @author Richard Weinhold
  */
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\Processor;
 
 /**
  * simple Template parser with Twig-like syntax
  */
-class ForLoop extends Worker
+class ForLoop extends Processor
 {
     const ORIGIN = 'origin';
     const CONTENT = 'content';
@@ -29,9 +29,9 @@ class ForLoop extends Worker
      * @throws UnexpectedValueException
      * @throws RuntimeException
      */
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = []): self
     {
-        while ($loop = $this->getNextLoop($content)) {
+        while ($loop = static::getNextLoop($this->content)) {
 
             $binding = (new Resolver($bindings))->resolve($loop[static::VARIABLE_FROM]);
             if (!is_array($binding)) {
@@ -72,11 +72,11 @@ class ForLoop extends Worker
                 }, $loop[static::CONTENT]);
             }
             $unrolledLoop = implode(PHP_EOL, $loopContent);
-            $content = str_replace($loop[static::ORIGIN], $unrolledLoop, $content);
 
+            $this->content = str_replace($loop[static::ORIGIN], $unrolledLoop, $this->content);
         }
 
-        return $content;
+        return $this;
     }
 
     /**
@@ -84,7 +84,7 @@ class ForLoop extends Worker
      * @return array|null
      * @throws UnexpectedValueException
      */
-    private function getLoopMatches(string $content): ?array
+    private static function getLoopMatches(string $content): ?array
     {
         $openLoopMatches = [];
         $closeLoopMatches = [];
@@ -137,7 +137,7 @@ class ForLoop extends Worker
      * @return array
      * @throws UnexpectedValueException
      */
-    private function matchLoopPairs(array $loopList, string $content): array
+    private static function matchLoopPairs(array $loopList, string $content): array
     {
         $openLoops = [];
         $loops = [];
@@ -206,14 +206,14 @@ class ForLoop extends Worker
      * @return array|null
      * @throws UnexpectedValueException
      */
-    private function getNextLoop(string $content): ?array
+    private static function getNextLoop(string $content): ?array
     {
-        $loopList = $this->getLoopMatches($content);
+        $loopList = static::getLoopMatches($content);
         if (empty($loopList)) {
             return null;
         }
 
-        $loops = $this->matchLoopPairs($loopList, $content);
+        $loops = static::matchLoopPairs($loopList, $content);
 
         return reset($loops);
     }

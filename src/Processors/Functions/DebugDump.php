@@ -1,23 +1,24 @@
 <?php
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors\Functions;
 
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\Resolver;
-use ricwein\Templater\Engine\Worker;
+use ricwein\Templater\Processor;
 
-class DebugDump extends Worker
+class DebugDump extends Processor
 {
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = []): self
     {
-        return preg_replace_callback('/{{\s*dump\(\s*(.+)\s*\)\s*}}/', function (array $match) use ($bindings): string {
+        $this->content = preg_replace_callback('/{{\s*dump\(\s*(.+)\s*\)\s*}}/', function (array $match) use ($bindings): string {
 
             if (!$this->config->debug) {
                 return '';
@@ -26,7 +27,9 @@ class DebugDump extends Worker
             $var = (new Resolver($bindings))->resolve($match[1]);
             $result = static::dump($var);
             return sprintf('<pre><code>%s</code></pre>', $result);
-        }, $content);
+        }, $this->content);
+
+        return $this;
     }
 
     private static function dump($var): string
@@ -34,6 +37,5 @@ class DebugDump extends Worker
         ob_start();
         var_dump($var);
         return trim(ob_get_clean());
-
     }
 }

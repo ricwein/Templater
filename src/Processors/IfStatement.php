@@ -1,15 +1,15 @@
 <?php
 
 
-namespace ricwein\Templater\Processor;
+namespace ricwein\Templater\Processors;
 
-use Exception;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Engine\Worker;
+use ricwein\Templater\Exceptions\Exception;
+use ricwein\Templater\Processor;
 
-class IfStatement extends Worker
+class IfStatement extends Processor
 {
     const BRANCHES = 'branches';
     const ORIGIN = 'origin';
@@ -19,21 +19,22 @@ class IfStatement extends Worker
 
     private Config $config;
 
-    public function __construct(Config $config)
+    public function __construct(string $content, Config $config)
     {
+        parent::__construct($content);
         $this->config = $config;
     }
 
     /**
-     * @param string $content
      * @param array $bindings
-     * @return string
+     * @return $this
      * @throws Exception
+     * @throws UnexpectedValueException
      */
-    public function replace(string $content, array $bindings = []): string
+    public function process(array $bindings = []): self
     {
         $resolver = new Resolver($bindings);
-        while ($stmt = $this->getNextValidIfStatements($content)) {
+        while ($stmt = $this->getNextValidIfStatements($this->content)) {
 
             foreach ($stmt[static::BRANCHES] as $branch) {
 
@@ -42,7 +43,7 @@ class IfStatement extends Worker
                     try {
                         // check if the required condition is satisfied
                         if ($resolver->resolveCondition($branch[static::CONDITION])) {
-                            $content = str_replace($stmt[static::ORIGIN], $branch[static::CONTENT], $content);
+                            $this->content = str_replace($stmt[static::ORIGIN], $branch[static::CONTENT], $this->content);
                             continue 2;
                         }
 
@@ -55,17 +56,17 @@ class IfStatement extends Worker
                 } else {
 
                     // we found an else-branch which we can use
-                    $content = str_replace($stmt[static::ORIGIN], $branch[static::CONTENT], $content);
+                    $this->content = str_replace($stmt[static::ORIGIN], $branch[static::CONTENT], $this->content);
                     continue 2;
 
                 }
             }
 
             // nothing matched and no else-branch found, so we remove the whole statement
-            $content = str_replace($stmt[static::ORIGIN], '', $content);
+            $this->content = str_replace($stmt[static::ORIGIN], '', $this->content);
         }
 
-        return $content;
+        return $this;
     }
 
     /**
@@ -75,12 +76,12 @@ class IfStatement extends Worker
      */
     private function getNextValidIfStatements(string $content): ?array
     {
-        $statementList = $this->getIfStatementMatches($content);
+        $statementList = static::getIfStatementMatches($content);
         if ($statementList === null) {
             return null;
         }
 
-        $statements = $this->matchStatementPairs($statementList, $content);
+        $statements = static::matchStatementPairs($statementList, $content);
         return reset($statements);
     }
 
@@ -89,7 +90,7 @@ class IfStatement extends Worker
      * @return array|null
      * @throws UnexpectedValueException
      */
-    private function getIfStatementMatches(string $content): ?array
+    private static function getIfStatementMatches(string $content): ?array
     {
         $ifMatches = [];
         $elseIfMatches = [];
@@ -170,7 +171,7 @@ class IfStatement extends Worker
      * @return array
      * @throws UnexpectedValueException
      */
-    private function matchStatementPairs(array $statementList, string $content): array
+    private static function matchStatementPairs(array $statementList, string $content): array
     {
 
         $openStatements = [];
@@ -240,7 +241,7 @@ class IfStatement extends Worker
                     $loopContent = substr($content, $contentStart, $contentLength);
 
                     $stmt = [
-                        static::CONTENT => $loopContent,
+                        static::CONTENT => trim($loopContent, PHP_EOL),
                     ];
                     if (isset($startStmt['condition'])) {
                         $stmt[static::CONDITION] = $startStmt['condition'];
