@@ -4,6 +4,7 @@ namespace ricwein\Templater\Engine;
 
 use RecursiveArrayIterator;
 use RecursiveIteratorIterator;
+use ReflectionException;
 use ricwein\Templater\Exceptions\RuntimeException;
 
 class Resolver
@@ -28,6 +29,7 @@ class Resolver
      * Resolves bindings if required.
      * @param string $parameter
      * @return array|bool|float|int|mixed|string
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     public function resolve(string $parameter)
@@ -79,6 +81,7 @@ class Resolver
      * Resolves bindings if required.
      * @param string $parameter
      * @return array|bool|float|int|mixed|string
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     private function resolveVar(string $parameter)
@@ -141,47 +144,76 @@ class Resolver
     }
 
     /**
+     * @param string $functionString
+     * @return array [BaseFunction, array]
+     * @throws RuntimeException
+     * @throws ReflectionException
+     */
+    private function splitFunctionString(string $functionString): ?array
+    {
+        $splitted = static::splitContextStringBy('(', $functionString, true);
+        $name = trim($splitted[0]);
+        $function = $this->getFunction($name);
+
+        if ($function === null) {
+            return null;
+        }
+
+        $parameters = [];
+        if (count($splitted) > 1) {
+            $parameterString = $splitted[1];
+            if (strrpos($parameterString, ')') === (strlen($parameterString) - 1)) {
+                $parameterString = substr($parameterString, 0, strlen($parameterString) - 1);
+            }
+            $parameters = static::splitContextStringBy(',', $parameterString);
+            $parameters = array_map('trim', $parameters);
+            $parameters = array_filter($parameters, function (string $var): bool {
+                return !empty($var);
+            });
+        }
+
+        $requiredParameters = $function->getNumberOfRequiredParameters();
+
+        if (count($parameters) < ($requiredParameters - 1)) {
+            throw new RuntimeException(sprintf("Too few arguments to function %s(), %d passed and exactly %d expected.", $function->getName(), count($parameters), $requiredParameters), 500);
+        }
+
+        $parameters = array_map(function (string $var) {
+            return $this->resolve($var);
+        }, $parameters);
+
+        return [
+            $function, $parameters
+        ];
+    }
+
+    /**
      * @param array $parts
+     * @param array|mixed $value
      * @return array|mixed
+     * @throws ReflectionException
      * @throws RuntimeException
      */
-    private function resolveFunctionPipes(array $parts)
+    private function resolveFunctionPipes(array $parts, $value)
     {
-        // evaluate start value
-        $value = $this->resolve(array_shift($parts));
-
         // iterate through function pipes
         foreach ($parts as $functionString) {
-            $splitted = static::splitContextStringBy('(', $functionString, true);
-            $name = trim($splitted[0]);
 
-            if (null === $function = $this->getFunction($name)) {
-                throw new RuntimeException("Invalid call to function '{$name}()'. No function found with this name.", 500);
+            $resolvedFunction = $this->splitFunctionString($functionString);
+            if ($resolvedFunction === null) {
+                throw new RuntimeException(sprintf("Invalid call to function '%s()'. No function found with this name.", reset(explode('(', $functionString, 2))), 500);
             }
 
-            $requiredParameters = $function->getNumberOfRequiredParameters();
+            /** @var BaseFunction $function */
+            /** @var array $parameters */
+            [$function, $parameters] = $resolvedFunction;
 
-            $parameters = [];
-            if (count($splitted) > 1) {
-                $parameters = array_filter(array_map('trim', static::splitContextStringBy(',', rtrim($splitted[1], ')'))), function (string $var): bool {
-                    return !empty($var);
-                });
-            }
+            // set first value from previous results
+            array_unshift($parameters, $value);
 
-            try {
-                if (count($parameters) < ($requiredParameters - 1)) {
-                    throw new RuntimeException(sprintf("Too few arguments to function %s(), %d passed and exactly %d expected.", $name, count($splitted), $requiredParameters), 500);
-                }
-
-                $value = $function->call(array_merge([$value], array_map(function (string $var) {
-                    return $this->resolve($var);
-                }, $parameters)));
-            } catch (\TypeError $exception) {
-                throw new RuntimeException("Function parameter type mismatch!", 500, $exception);
-            }
-
-
+            $value = $function->call($parameters);
         }
+
         return $value;
     }
 
@@ -189,6 +221,7 @@ class Resolver
      * Resolves variable path to final value.
      * @param string $variableName
      * @return array|mixed
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     private function resolveVarPathToValue(string $variableName)
@@ -196,7 +229,9 @@ class Resolver
         $variableName = trim($variableName);
         $parts = static::splitContextStringBy('|', $variableName);
         if (count($parts) > 1) {
-            return static::resolveFunctionPipes($parts);
+            // evaluate start value
+            $value = $this->resolve(array_shift($parts));
+            return $this->resolveFunctionPipes($parts, $value);
         }
 
         $variablePath = static::splitContextStringBy('.', $variableName);
@@ -222,8 +257,16 @@ class Resolver
         /** @var string $value */
         foreach ($variablePath as $value) {
 
+            $resolvedFunction = $this->splitFunctionString($value);
+
             // match against current bindings tree
             switch (true) {
+
+                case $resolvedFunction !== null:
+                    [$function, $parameters] = $resolvedFunction;
+                    $previousValue = null;
+                    $current = $function->call($parameters);
+                    break;
 
                 case is_array($current) && array_key_exists($value, $current):
                     $previousValue = $value;
@@ -310,6 +353,7 @@ class Resolver
     /**
      * @param string $content
      * @return array
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     private function convertStringToAssoc(string $content): array
@@ -454,6 +498,7 @@ class Resolver
     /**
      * @param string $condition
      * @return bool
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     public function resolveCondition(string $condition): bool
@@ -561,6 +606,7 @@ class Resolver
      * @param string $rVar
      * @param string $operator
      * @return bool
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     private function resolveEquation(string $lVar, string $rVar, string $operator): bool
@@ -599,6 +645,7 @@ class Resolver
     /**
      * @param string $condition
      * @return bool
+     * @throws ReflectionException
      * @throws RuntimeException
      */
     private function resolveSingleParameterCondition(string $condition): bool

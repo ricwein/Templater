@@ -29,14 +29,23 @@ class DefaultFunctions
                 return htmlspecialchars($string, ENT_QUOTES | ENT_SUBSTITUTE);
             }, 'e'),
 
-            new BaseFunction('dump', function ($variable): string {
+            new BaseFunction('range', function ($start, $end, int $steps = 1) {
+                return range($start, $end, $steps);
+            }),
+
+            new BaseFunction('dump', function (...$variables): string {
                 if (!$this->config->debug) {
                     return '';
                 }
 
-                ob_start();
-                var_dump($variable);
-                return sprintf('<pre><code>%s</code></pre>', trim(ob_get_clean()));
+                $result = [];
+                foreach ($variables as $variable) {
+                    ob_start();
+                    var_dump($variable);
+                    $result[] = sprintf('<pre><code>%s</code></pre>', trim(ob_get_clean()));
+                }
+
+                return implode(PHP_EOL, $result);
             }),
 
             new BaseFunction('lower', function (string $string): string {

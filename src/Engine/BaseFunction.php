@@ -6,6 +6,8 @@ use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
+use ricwein\Templater\Exceptions\RuntimeException;
+use TypeError;
 
 class BaseFunction
 {
@@ -49,6 +51,10 @@ class BaseFunction
         return $this->__parameters;
     }
 
+    /**
+     * @return int
+     * @throws ReflectionException
+     */
     public function getNumberOfRequiredParameters(): int
     {
         if ($this->__requiredParameters === null) {
@@ -77,8 +83,18 @@ class BaseFunction
         return $this->__shortName;
     }
 
+    /**
+     * @param array $parameters
+     * @return mixed
+     * @throws RuntimeException
+     */
     public function call(array $parameters)
     {
-        return call_user_func_array($this->__function, $parameters);
+        try {
+            return call_user_func_array($this->__function, $parameters);
+        } catch (TypeError $exception) {
+            throw new RuntimeException("Function parameter type mismatch!", 500, $exception);
+        }
+
     }
 }
