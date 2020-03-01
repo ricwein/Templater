@@ -230,8 +230,8 @@ class Resolver
         $parts = static::splitContextStringBy('|', $variableName);
         if (count($parts) > 1) {
             // evaluate start value
-            $value = $this->resolve(array_shift($parts));
-            return $this->resolveFunctionPipes($parts, $value);
+            $key = $this->resolve(array_shift($parts));
+            return $this->resolveFunctionPipes($parts, $key);
         }
 
         $variablePath = static::splitContextStringBy('.', $variableName);
@@ -241,113 +241,134 @@ class Resolver
         // if the first element is an inline array or object, use them instead of provided bindings
         $firstElement = reset($variablePath);
         if (isset($firstElement) && strpos($firstElement, '[') === 0 && strrpos($firstElement, ']') === (strlen($firstElement) - 1)) {
-            $current = $this->convertStringToArray($firstElement);
+            $value = $this->convertStringToArray($firstElement);
             array_shift($variablePath);
         } elseif (isset($firstElement) && strpos($firstElement, '{') === 0 && strrpos($firstElement, '}') === (strlen($firstElement) - 1)) {
-            $current = $this->convertStringToAssoc($firstElement);
+            $value = $this->convertStringToAssoc($firstElement);
             array_shift($variablePath);
         } else {
-            $current = $this->bindings;
+            $value = $this->bindings;
         }
 
         // keep track of the variable path which we walk down
-        $previousValue = null;
+        $previousKey = null;
 
         // traverse template variable
-        /** @var string $value */
-        foreach ($variablePath as $value) {
+        /** @var string $key */
+        foreach ($variablePath as $key) {
 
-            $resolvedFunction = $this->splitFunctionString($value);
+            if (strpos($key, '[') !== false && strrpos($key, ']') === (strlen($key) - 1)) {
+                // check for array-like access notation
+                $parts = static::splitContextStringBy('[', $key, true);
+                if (count($parts) === 2) {
+                    $key = $parts[0];
+                    $arrayKey = trim(substr($parts[1], 0, strlen($parts[1]) - 1));
 
-            // match against current bindings tree
-            switch (true) {
+                    $value = $this->getValueFor($key, $value, $previousKey, $variableName);
+                    $key = $this->resolve($arrayKey);
 
-                case $resolvedFunction !== null:
-                    [$function, $parameters] = $resolvedFunction;
-                    $previousValue = null;
-                    $current = $function->call($parameters);
-                    break;
-
-                case is_array($current) && array_key_exists($value, $current):
-                    $previousValue = $value;
-                    $current = $current[$value];
-                    break;
-
-                case is_object($current) && (property_exists($current, $value) || isset($current->$value)):
-                    $previousValue = $value;
-                    $current = $current->$value;
-                    break;
-
-                case is_object($current) && (strrpos($value, ')') === (strlen($value) - 1) && strrpos($value, '(') === (strlen($value) - 2)) && method_exists($current, rtrim($value, '()')):
-                    $previousValue = $value;
-                    $current = $current->{rtrim($value, '()')}();
-                    break;
-
-                case is_array($current) && in_array(strtolower($value), ['first()', 'last()', 'count()', 'empty()', 'sum()', 'keys()', 'values()', 'flip()', 'flat()'], true):
-                    switch (strtolower($value)) {
-
-                        case 'first()':
-                            $previousValue = array_key_first($current);
-                            $current = $current[$previousValue];
-                            break;
-
-                        case 'last()':
-                            $previousValue = array_key_last($current);
-                            $current = $current[$previousValue];
-                            break;
-
-                        case 'count()':
-                            $previousValue = null;
-                            $current = count($current);
-                            break;
-
-                        case 'empty()':
-                            $previousValue = null;
-                            $current = empty($current);
-                            break;
-
-                        case 'sum()':
-                            $previousValue = null;
-                            $current = array_sum($current);
-                            break;
-
-                        case 'keys()':
-                            $previousValue = null;
-                            $current = array_keys($current);
-                            break;
-
-                        case 'values()':
-                            $previousValue = null;
-                            $current = array_values($current);
-                            break;
-
-                        case 'flip()':
-                            $previousValue = null;
-                            $current = array_flip($current);
-                            break;
-
-                        case 'flat()':
-                            $previousValue = null;
-                            $it = new RecursiveIteratorIterator(new RecursiveArrayIterator((array)$current));
-                            $array = [];
-                            foreach ($it as $innerValue) {
-                                $array[] = $innerValue;
-                            }
-                            $current = $array;
-                    }
-                    break;
-
-                case $previousValue !== null && is_scalar($previousValue) && in_array(strtolower($value), ['key()'], true):
-                    $current = $previousValue;
-                    $previousValue = $value;
-                    break;
-
-                default:
-                    throw new RuntimeException("Unable to access element '{$value}' for variable: '{$variableName}'", 500);
+                    $value = $this->getValueFor($key, $value, $previousKey, $variableName);
+                    continue;
+                }
             }
+
+            $value = $this->getValueFor($key, $value, $previousKey, $variableName);
         }
 
-        return $current;
+        return $value;
+    }
+
+    /**
+     * Fetch sub-entry from bindings/functions for single key
+     * @param string $key
+     * @param $source
+     * @param string &$previousKey
+     * @param string $variableName
+     * @return array|bool|float|int|mixed|string
+     * @throws ReflectionException
+     * @throws RuntimeException
+     */
+    private function getValueFor(string $key, $source, ?string &$previousKey, string $variableName)
+    {
+        $resolvedFunction = $this->splitFunctionString($key);
+
+        // match against current bindings tree
+        switch (true) {
+
+            case $resolvedFunction !== null:
+                [$function, $parameters] = $resolvedFunction;
+                $previousKey = null;
+                return $function->call($parameters);
+                break;
+
+            case is_array($source) && array_key_exists($key, $source):
+                $previousKey = $key;
+                return $source[$key];
+
+            case is_object($source) && (property_exists($source, $key) || isset($source->$key)):
+                $previousKey = $key;
+                return $source->$key;
+
+            case is_object($source) && (strrpos($key, ')') === (strlen($key) - 1) && strrpos($key, '(') === (strlen($key) - 2)) && method_exists($source, rtrim($key, '()')):
+                $previousKey = $key;
+                return $source->{rtrim($key, '()')}();
+
+            case is_array($source) && in_array(strtolower($key), ['first()', 'last()', 'count()', 'empty()', 'sum()', 'keys()', 'values()', 'flip()', 'flat()'], true):
+                switch (strtolower($key)) {
+
+                    case 'first()':
+                        $previousKey = array_key_first($source);
+                        return $source[$previousKey];
+
+                    case 'last()':
+                        $previousKey = array_key_last($source);
+                        return $source[$previousKey];
+
+                    case 'count()':
+                        $previousKey = null;
+                        return count($source);
+
+                    case 'empty()':
+                        $previousKey = null;
+                        return empty($source);
+
+                    case 'sum()':
+                        $previousKey = null;
+                        return array_sum($source);
+
+                    case 'keys()':
+                        $previousKey = null;
+                        return array_keys($source);
+
+                    case 'values()':
+                        $previousKey = null;
+                        return array_values($source);
+
+                    case 'flip()':
+                        $previousKey = null;
+                        return array_flip($source);
+
+                    case 'flat()':
+                        $previousKey = null;
+                        $it = new RecursiveIteratorIterator(new RecursiveArrayIterator((array)$source));
+                        $array = [];
+                        foreach ($it as $innerValue) {
+                            $array[] = $innerValue;
+                        }
+                        return $array;
+
+                    default:
+                        throw new RuntimeException("Unknown array modifier .{$key}", 500);
+                }
+
+            case $previousKey !== null && is_scalar($previousKey) && in_array(strtolower($key), ['key()'], true):
+                $source = $previousKey;
+                $previousKey = $key;
+                return $source;
+
+            default:
+                throw new RuntimeException("Unable to resolve variable path '{$variableName}'. Unknown key: '{$key}'", 500);
+        }
     }
 
     /**

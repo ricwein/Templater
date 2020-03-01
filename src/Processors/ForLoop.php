@@ -62,7 +62,7 @@ class ForLoop extends Processor
                     foreach ($replaces as $replace => $with) {
 
                         // only replace full word matches but not partial (.pages. with .page.1s.)
-                        $input = preg_replace_callback("/\.{$replace}[\s}%]|\s+{$replace}\s+|{{{$replace}}}|[\s}%]{$replace}\./", function (array $replaceMatch) use ($replace, $with): string {
+                        $input = preg_replace_callback("/\.{$replace}[\s}%]|\s+{$replace}\s+|{{{$replace}}}|\[{$replace}\.|\[{$replace}]|[\s}%]{$replace}\./", function (array $replaceMatch) use ($replace, $with): string {
                             return str_replace($replace, $with, $replaceMatch[0]);
                         }, $input);
 
