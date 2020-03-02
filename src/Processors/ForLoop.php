@@ -5,6 +5,7 @@
 
 namespace ricwein\Templater\Processors;
 
+use ReflectionException;
 use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
@@ -28,6 +29,7 @@ class ForLoop extends Processor
      * @return ForLoop
      * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws ReflectionException
      */
     public function process(array $bindings = [], array $functions = []): self
     {
@@ -46,12 +48,12 @@ class ForLoop extends Processor
                 // what do we want to pass into the loop? key and value or only value
                 if (preg_match('/\((.+)\s*,\s*(.+)\)/', $loop[static::VARIABLE_AS], $matches) === 1) {
                     $replaces += [
-                        $matches[1] => "{$loop[static::VARIABLE_FROM]}.{$key}.key()",
-                        $matches[2] => "{$loop[static::VARIABLE_FROM]}.{$key}",
+                        $matches[1] => "{$loop[static::VARIABLE_FROM]}[{$key}].key()",
+                        $matches[2] => "{$loop[static::VARIABLE_FROM]}[{$key}]",
                     ];
                 } else {
                     $replaces += [
-                        $loop[static::VARIABLE_AS] => "{$loop[static::VARIABLE_FROM]}.{$key}",
+                        $loop[static::VARIABLE_AS] => "{$loop[static::VARIABLE_FROM]}[{$key}]",
                     ];
                 }
 
@@ -62,10 +64,9 @@ class ForLoop extends Processor
                     foreach ($replaces as $replace => $with) {
 
                         // only replace full word matches but not partial (.pages. with .page.1s.)
-                        $input = preg_replace_callback("/\.{$replace}[\s}%]|\s+{$replace}\s+|{{{$replace}}}|\[{$replace}\.|\[{$replace}]|[\s}%]{$replace}\./", function (array $replaceMatch) use ($replace, $with): string {
+                        $input = preg_replace_callback("/(?:\.|\s+|{{|{%|\[|\(|){$replace}(?:\.|\s+|}}|%}|]\))/", function (array $replaceMatch) use ($replace, $with): string {
                             return str_replace($replace, $with, $replaceMatch[0]);
                         }, $input);
-
                     }
 
                     return $input;

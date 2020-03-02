@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 use ricwein\FileSystem\File;
+use ricwein\Templater\Config;
+use ricwein\Templater\Engine\DefaultFunctions;
 use ricwein\Templater\Engine\Resolver;
 use ricwein\FileSystem\Storage;
 
@@ -10,43 +12,28 @@ class ResolverTest extends TestCase
 {
     public function testDirectResolving()
     {
-        $tests = [
-            '"test"' => 'test',
-            "'test'" => 'test',
-            "true" => true,
-            "false" => false,
-            "42" => 42,
-            "3.14" => 3.14,
-            "null" => null,
-
-            "['test']" => ['test'],
-            "{'key': 'value'}" => ['key' => 'value'],
-
-            "[{'key_test': 'nice value'}, 'yay']" => [['key_test' => 'nice value'], 'yay'],
-            "{'key_test': ['value1', 'value2']}" => ['key_test' => ['value1', 'value2']],
-
-            "[['value1', 'value2'], ['value3', 'value4']]" => [['value1', 'value2'], ['value3', 'value4']],
-            "{'object1': {'key1': 'value1'}, 'object2' : {'key2': 'value2'}}" => ['object1' => ['key1' => 'value1'], 'object2' => ['key2' => 'value2']],
-
-            "['value1', 'value2'].first()" => 'value1',
-            "['value1', 'value2'].0" => 'value1',
-            "['value1', 'value2'].last()" => 'value2',
-            "['value1', 'value2'].1" => 'value2',
-            "['value1', 'value2'].count()" => 2,
-            "['value1', 'value2'].first().key()" => 0,
-            "['value1', 'value2'].last().key()" => 1,
-            "['value1', 'value2'].flip().first()" => 0,
-            "['value1', 'value2'].flip().first().key()" => 'value1',
-            "['value1', 'value2'].flip().value1" => 0,
-            "['value1', 'value2'].flip().value2" => 1,
-        ];
-
         $resolver = new Resolver();
 
-        foreach ($tests as $input => $expection) {
-            $resolved = $resolver->resolve((string)$input);
-            $this->assertSame($expection, $resolved);
-        }
+        $this->assertSame('test', $resolver->resolve('"test"'));
+        $this->assertSame('test', $resolver->resolve("'test'"));
+        $this->assertSame(true, $resolver->resolve("true"));
+        $this->assertSame(false, $resolver->resolve("false"));
+        $this->assertSame(42, $resolver->resolve("42"));
+        $this->assertSame(42.0, $resolver->resolve("42.0"));
+        $this->assertSame(3.14, $resolver->resolve("3.14"));
+        $this->assertSame(null, $resolver->resolve("null"));
+        $this->assertSame(['test'], $resolver->resolve("['test']"));
+        $this->assertSame(['key' => 'value'], $resolver->resolve("{'key': 'value'}"));
+        $this->assertSame([['key_test' => 'nice value'], 'yay'], $resolver->resolve("[{'key_test': 'nice value'}, 'yay']"));
+        $this->assertSame(['key_test' => ['value1', 'value2']], $resolver->resolve("{'key_test': ['value1', 'value2']}"));
+        $this->assertSame([['value1', 'value2'], ['value3', 'value4']], $resolver->resolve("[['value1', 'value2'], ['value3', 'value4']]"));
+        $this->assertSame(['object1' => ['key1' => 'value1'], 'object2' => ['key2' => 'value2']], $resolver->resolve("{'object1': {'key1': 'value1'}, 'object2' : {'key2': 'value2'}}"));
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'].0"));
+        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'].1"));
+        //$this->assertSame('value1', $resolver->resolve("['value1', 'value2'][0]"));
+        //$this->assertSame('value2', $resolver->resolve("['value1', 'value2'][1]"));
+
+
     }
 
     public function testUnmatchingBindings()
@@ -79,8 +66,6 @@ class ResolverTest extends TestCase
             'value2' => true,
 
             'nested.test' => 'success',
-            'nested.first()' => 'success',
-            'nested.first().key()' => 'test',
 
             'file.path().directory' => dirname(__FILE__),
             'file.path().extension' => 'php',
@@ -91,7 +76,11 @@ class ResolverTest extends TestCase
 
         $resolver = new Resolver($bindings);
         foreach ($tests as $input => $expection) {
-            $resolved = $resolver->resolve((string)$input);
+            try {
+                $resolved = $resolver->resolve((string)$input);
+            } catch (ReflectionException $e) {
+            } catch (\ricwein\Templater\Exceptions\RuntimeException $e) {
+            }
             $this->assertSame($expection, $resolved);
         }
     }
@@ -125,14 +114,7 @@ class ResolverTest extends TestCase
             'strings' => ['yay', 'no', 'another string'],
         ];
         $tests = [
-            "data.first() ? 'yay'" => 'yay',
-            "data.last() ? 'yay'" => '',
-
             "'yay' in strings ? 'exists'" => 'exists',
-            "'nother' in strings.last() ? 'also exists'" => 'also exists',
-
-            "strings.first() == strings.0 ? 'success'" => 'success',
-            "strings.first() != strings.last() ? 'mismatches'" => 'mismatches'
         ];
 
         $resolver = new Resolver($bindings);
@@ -140,5 +122,52 @@ class ResolverTest extends TestCase
             $resolved = $resolver->resolve((string)$input);
             $this->assertSame($expection, $resolved);
         }
+    }
+
+    public function testContextStringSplitting()
+    {
+        $tests = [
+            'exceptions | first().code' => [
+                ['content' => 'exceptions', 'delimiter' => null],
+                ['content' => 'first()', 'delimiter' => '|'],
+                ['content' => 'code', 'delimiter' => '.'],
+            ]
+        ];
+
+        foreach ($tests as $input => $expection) {
+            $resolved = Resolver::splitContextStringOnDelimiters(['.', '|'], $input, false);
+            $this->assertSame($expection, $resolved);
+        }
+    }
+
+    public function testFunctionCalls()
+    {
+        $bindings = [
+            'data' => [true, false],
+            'nested' => ['test' => 'success'],
+            'strings' => ['yay', 'no', 'another string'],
+        ];
+
+        $functions = (new DefaultFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
+
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | first"));
+        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'] | last"));
+        $this->assertSame(2, $resolver->resolve("['value1', 'value2'] | count"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | keys | first"));
+        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | keys | last"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip | first"));
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | flip | keys | first"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip.value1"));
+        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | flip.value2"));
+
+        $this->assertSame('success', $resolver->resolve("nested | first"));
+        $this->assertSame('yay', $resolver->resolve("data | first ? 'yay'"));
+        $this->assertSame('', $resolver->resolve("data | last ? 'yay'"));
+        $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));
+        $this->assertSame('mismatches', $resolver->resolve("strings | first != strings | last ? 'mismatches'"));
+        $this->assertSame('also exists', $resolver->resolve("'another' in strings | last ? 'also exists'"));
+        $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));
+        $this->assertSame('mismatches', $resolver->resolve("strings | first != strings | last ? 'mismatches'"));
     }
 }

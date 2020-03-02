@@ -2,8 +2,9 @@
 
 namespace ricwein\Templater\Engine;
 
+use RecursiveArrayIterator;
+use RecursiveIteratorIterator;
 use ricwein\Templater\Config;
-use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 
 class DefaultFunctions
@@ -56,8 +57,53 @@ class DefaultFunctions
                 return strtoupper($string);
             }),
 
+            new BaseFunction('count', function ($input): int {
+                return count($input);
+            }),
+
+            new BaseFunction('sum', function (array $array) {
+                return array_sum($array);
+            }),
+
+            new BaseFunction('keys', function (array $array): array {
+                return array_keys($array);
+            }),
+
+            new BaseFunction('values', function (array $array): array {
+                return array_values($array);
+            }),
+
+            new BaseFunction('flip', function (array $array): array {
+                return array_flip($array);
+            }),
+
+            new BaseFunction('flat', function (array $array): array {
+                $it = new RecursiveIteratorIterator(new RecursiveArrayIterator((array)$array));
+                $flattenedArray = [];
+                foreach ($it as $innerValue) {
+                    $flattenedArray[] = $innerValue;
+                }
+                return $flattenedArray;
+            }),
+
+            new BaseFunction('first', function (array $array) {
+                return $array[array_key_first($array)];
+            }),
+
+            new BaseFunction('last', function (array $array) {
+                return $array[array_key_last($array)];
+            }),
+
+            new BaseFunction('empty', function ($var): bool {
+                return empty($var);
+            }),
+
             new BaseFunction('capitalize', function (string $string): string {
                 return ucfirst(strtolower($string));
+            }),
+
+            new BaseFunction('format', function (string $format, ...$parameters): string {
+                return sprintf($format, ...$parameters);
             }),
 
             new BaseFunction('date', function ($time, string $format): string {

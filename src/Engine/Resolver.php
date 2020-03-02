@@ -60,7 +60,7 @@ class Resolver
 
         // no further conditions found
         if ($conditionBranch === null || $satisfiedBranch === null) {
-            return $this->resolveVar($parameter);
+            return $this->resolveVarPathToValue($parameter);
         }
 
         // found shorthand condition, and it's satisfied
@@ -76,58 +76,6 @@ class Resolver
         return '';
     }
 
-    /**
-     * Casts input (string) $parameter to real data-type.
-     * Resolves bindings if required.
-     * @param string $parameter
-     * @return array|bool|float|int|mixed|string
-     * @throws ReflectionException
-     * @throws RuntimeException
-     */
-    private function resolveVar(string $parameter)
-    {
-        $parameter = trim($parameter);
-        switch (true) {
-
-            // handle explicit quoted strings
-            case (strpos($parameter, '\'') === 0 && strrpos($parameter, '\'') === (strlen($parameter) - 1)):
-                return trim($parameter, '\'');
-
-            case (strpos($parameter, '"') === 0 && strrpos($parameter, '"') === (strlen($parameter) - 1)):
-                return trim($parameter, '"');
-
-            // handle inline arrays
-            case (strpos($parameter, '[') === 0 && strrpos($parameter, ']') === (strlen($parameter) - 1)):
-                return $this->convertStringToArray($parameter);
-
-            // handle inline assocs
-            case (strpos($parameter, '{') === 0 && strrpos($parameter, '}') === (strlen($parameter) - 1)):
-                return $this->convertStringToAssoc($parameter);
-
-            // handle real bool values
-            case in_array($parameter, ['true', 'TRUE'], true):
-                return true;
-
-            case in_array($parameter, ['false', 'FALSE'], true):
-                return false;
-
-            // handle null values
-            case in_array($parameter, ['null', 'NULL'], true):
-                return null;
-
-            // handle inline integers
-            case strlen($parameter) === strlen((string)(int)$parameter):
-                return (int)$parameter;
-
-            // handle inline floats
-            case strlen($parameter) === strlen((string)(float)$parameter):
-                return (float)$parameter;
-
-            default:
-                return $this->resolveVarPathToValue($parameter);
-        }
-    }
-
     private function getFunction(string $name): ?BaseFunction
     {
         if (isset($this->functions[$name])) {
@@ -135,7 +83,7 @@ class Resolver
         }
 
         foreach ($this->functions as $function) {
-            if ($function->getShortName() === $name) {
+            if ($function->getShortName() === $name || $function->getName() === $name) {
                 return $function;
             }
         }
@@ -188,36 +136,6 @@ class Resolver
     }
 
     /**
-     * @param array $parts
-     * @param array|mixed $value
-     * @return array|mixed
-     * @throws ReflectionException
-     * @throws RuntimeException
-     */
-    private function resolveFunctionPipes(array $parts, $value)
-    {
-        // iterate through function pipes
-        foreach ($parts as $functionString) {
-
-            $resolvedFunction = $this->splitFunctionString($functionString);
-            if ($resolvedFunction === null) {
-                throw new RuntimeException(sprintf("Invalid call to function '%s()'. No function found with this name.", reset(explode('(', $functionString, 2))), 500);
-            }
-
-            /** @var BaseFunction $function */
-            /** @var array $parameters */
-            [$function, $parameters] = $resolvedFunction;
-
-            // set first value from previous results
-            array_unshift($parameters, $value);
-
-            $value = $function->call($parameters);
-        }
-
-        return $value;
-    }
-
-    /**
      * Resolves variable path to final value.
      * @param string $variableName
      * @return array|mixed
@@ -226,26 +144,28 @@ class Resolver
      */
     private function resolveVarPathToValue(string $variableName)
     {
-        $variableName = trim($variableName);
-        $parts = static::splitContextStringBy('|', $variableName);
-        if (count($parts) > 1) {
-            // evaluate start value
-            $key = $this->resolve(array_shift($parts));
-            return $this->resolveFunctionPipes($parts, $key);
+        if (is_numeric($variableName)) {
+            if (strlen($variableName) === strlen((string)(int)$variableName)) {
+                return (int)$variableName;
+            } else if (strlen($variableName) === strlen((string)(float)$variableName)) {
+                return (float)$variableName;
+            }
+            return (float)$variableName;
         }
 
-        $variablePath = static::splitContextStringBy('.', $variableName);
+        $variableName = trim($variableName);
+        $keyPath = static::splitContextStringOnDelimiters(['.', '|', ']'], $variableName);
 
         // iterate vertically through bindings
         // where $current is always a subset of the previous iterations $current
         // if the first element is an inline array or object, use them instead of provided bindings
-        $firstElement = reset($variablePath);
+        $firstElement = reset($keyPath)['content'];
         if (isset($firstElement) && strpos($firstElement, '[') === 0 && strrpos($firstElement, ']') === (strlen($firstElement) - 1)) {
             $value = $this->convertStringToArray($firstElement);
-            array_shift($variablePath);
+            array_shift($keyPath);
         } elseif (isset($firstElement) && strpos($firstElement, '{') === 0 && strrpos($firstElement, '}') === (strlen($firstElement) - 1)) {
             $value = $this->convertStringToAssoc($firstElement);
-            array_shift($variablePath);
+            array_shift($keyPath);
         } else {
             $value = $this->bindings;
         }
@@ -255,24 +175,95 @@ class Resolver
 
         // traverse template variable
         /** @var string $key */
-        foreach ($variablePath as $key) {
+        foreach ($keyPath as $keyPathPart) {
+            $key = $keyPathPart['content'];
+            $delimiter = $keyPathPart['delimiter'];
 
-            if (strpos($key, '[') !== false && strrpos($key, ']') === (strlen($key) - 1)) {
-                // check for array-like access notation
-                $parts = static::splitContextStringBy('[', $key, true);
-                if (count($parts) === 2) {
-                    $key = $parts[0];
-                    $arrayKey = trim(substr($parts[1], 0, strlen($parts[1]) - 1));
+            // handle inline declarations
+            if ($delimiter === null) {
+                switch (true) {
 
-                    $value = $this->getValueFor($key, $value, $previousKey, $variableName);
-                    $key = $this->resolve($arrayKey);
+                    // handle explicit quoted strings
+                    case (strpos($key, '\'') === 0 && strrpos($key, '\'') === (strlen($key) - 1)):
+                        $value = trim($key, '\'');
+                        $previousKey = null;
+                        continue 2;
+                    case (strpos($key, '"') === 0 && strrpos($key, '"') === (strlen($key) - 1)):
+                        $value = trim($key, '"');
+                        $previousKey = null;
+                        continue 2;
 
-                    $value = $this->getValueFor($key, $value, $previousKey, $variableName);
-                    continue;
+                    // handle inline arrays
+                    case (strpos($key, '[') === 0 && strrpos($key, ']') === (strlen($key) - 1)):
+                        $value = $this->convertStringToArray($key);
+                        $previousKey = null;
+                        continue 2;
+
+                    // handle inline assocs
+                    case (strpos($key, '{') === 0 && strrpos($key, '}') === (strlen($key) - 1)):
+                        $value = $this->convertStringToAssoc($key);
+                        $previousKey = null;
+                        continue 2;
+
+                    // handle real bool values
+                    case in_array($key, ['true', 'TRUE'], true):
+                        $value = true;
+                        $previousKey = null;
+                        continue 2;
+                    case in_array($key, ['false', 'FALSE'], true):
+                        $value = false;
+                        $previousKey = null;
+                        continue 2;
+
+                    // handle null values
+                    case in_array($key, ['null', 'NULL'], true):
+                        $value = null;
+                        $previousKey = null;
+                        continue 2;
+
+                    // handle inline integers
+                    case strlen($key) === strlen((string)(int)$key):
+                        $value = (int)$key;
+                        $previousKey = null;
+                        continue 2;
+
+                    // handle inline floats
+                    case strlen($key) === strlen((string)(float)$key):
+                        $value = (float)$key;
+                        $previousKey = null;
+                        continue 2;
                 }
             }
 
-            $value = $this->getValueFor($key, $value, $previousKey, $variableName);
+            // check for array-like access notation
+            if (strrpos($key, ']') === (strlen($key) - 1) && false !== $startPos = strpos($key, '[')) {
+
+                $arrayKey = substr($key, $startPos + 1, -1);
+                $key = trim(substr($key, 0, $startPos));
+
+                $value = $this->getValueForKeyInObject($key, $value, $previousKey, $delimiter, $variableName);
+                $key = $this->resolve($arrayKey);
+
+                $value = $this->getValueForKeyInObject($key, $value, $previousKey, null, $variableName);
+                continue;
+            }
+
+            // the last delimiter was an pipe | which requires an function-call next:
+            if ($delimiter === '|') {
+                $resolvedFunction = $this->splitFunctionString($key);
+                if ($resolvedFunction === null) {
+                    throw new RuntimeException("Call to unknown function '{$key}'", 500);
+                }
+
+                [$function, $parameters] = $resolvedFunction;
+                array_unshift($parameters, $value);
+                $previousKey = null;
+                $value = $function->call($parameters);
+
+                continue;
+            }
+
+            $value = $this->getValueForKeyInObject($key, $value, $previousKey, $delimiter, $variableName);
         }
 
         return $value;
@@ -283,23 +274,17 @@ class Resolver
      * @param string $key
      * @param $source
      * @param string &$previousKey
+     * @param null|string $delimiter
      * @param string $variableName
      * @return array|bool|float|int|mixed|string
      * @throws ReflectionException
      * @throws RuntimeException
      */
-    private function getValueFor(string $key, $source, ?string &$previousKey, string $variableName)
+    private function getValueForKeyInObject(string $key, $source, ?string &$previousKey, ?string $delimiter, string $variableName)
     {
-        $resolvedFunction = $this->splitFunctionString($key);
 
         // match against current bindings tree
         switch (true) {
-
-            case $resolvedFunction !== null:
-                [$function, $parameters] = $resolvedFunction;
-                $previousKey = null;
-                return $function->call($parameters);
-                break;
 
             case is_array($source) && array_key_exists($key, $source):
                 $previousKey = $key;
@@ -313,58 +298,20 @@ class Resolver
                 $previousKey = $key;
                 return $source->{rtrim($key, '()')}();
 
-            case is_array($source) && in_array(strtolower($key), ['first()', 'last()', 'count()', 'empty()', 'sum()', 'keys()', 'values()', 'flip()', 'flat()'], true):
-                switch (strtolower($key)) {
-
-                    case 'first()':
-                        $previousKey = array_key_first($source);
-                        return $source[$previousKey];
-
-                    case 'last()':
-                        $previousKey = array_key_last($source);
-                        return $source[$previousKey];
-
-                    case 'count()':
-                        $previousKey = null;
-                        return count($source);
-
-                    case 'empty()':
-                        $previousKey = null;
-                        return empty($source);
-
-                    case 'sum()':
-                        $previousKey = null;
-                        return array_sum($source);
-
-                    case 'keys()':
-                        $previousKey = null;
-                        return array_keys($source);
-
-                    case 'values()':
-                        $previousKey = null;
-                        return array_values($source);
-
-                    case 'flip()':
-                        $previousKey = null;
-                        return array_flip($source);
-
-                    case 'flat()':
-                        $previousKey = null;
-                        $it = new RecursiveIteratorIterator(new RecursiveArrayIterator((array)$source));
-                        $array = [];
-                        foreach ($it as $innerValue) {
-                            $array[] = $innerValue;
-                        }
-                        return $array;
-
-                    default:
-                        throw new RuntimeException("Unknown array modifier .{$key}", 500);
-                }
-
             case $previousKey !== null && is_scalar($previousKey) && in_array(strtolower($key), ['key()'], true):
                 $source = $previousKey;
                 $previousKey = $key;
                 return $source;
+
+            // handle leading function calls
+            case null !== $resolvedFunction = $this->splitFunctionString($key):
+                if ($delimiter !== null) {
+                    throw new RuntimeException("Unexpected function-call to: {$key}()", 500);
+                }
+                [$function, $parameters] = $resolvedFunction;
+                $previousKey = null;
+                return $function->call($parameters);
+                break;
 
             default:
                 throw new RuntimeException("Unable to resolve variable path '{$variableName}'. Unknown key: '{$key}'", 500);
@@ -443,6 +390,7 @@ class Resolver
         switch ($char) {
             case '{':
             case '[':
+            case '(':
                 $openBlocks[] = $char;
                 return $openBlocks;
 
@@ -456,6 +404,13 @@ class Resolver
             case ']':
                 $lastOpenBlock = end($openBlocks);
                 if ($lastOpenBlock === '[') {
+                    array_pop($openBlocks);
+                }
+                return $openBlocks;
+
+            case ')':
+                $lastOpenBlock = end($openBlocks);
+                if ($lastOpenBlock === '(') {
                     array_pop($openBlocks);
                 }
                 return $openBlocks;
@@ -482,9 +437,62 @@ class Resolver
         return $openBlocks;
     }
 
+    public static function splitContextStringOnDelimiters(array $delimiters, string $string, bool $abortAfterFirstMatch = false): array
+    {
+        $parts = [];
+
+        $delimiterList = [];
+        foreach ($delimiters as $del) {
+            $delimiterList[] = ['len' => strlen($del), 'del' => $del];
+        }
+
+        $lastDelimiter = null;
+        $currentDelimiter = null;
+        $lastOffset = 0;
+        $remaining = $string;
+        $openBlocks = [];
+
+        foreach (str_split($string) as $offset => $char) {
+
+            if (!empty($openBlocks)) {
+                $openBlocks = static::trackOpenBlocksFromToken($char, $openBlocks);
+                continue;
+            }
+
+            foreach ($delimiterList as $del) {
+                if ($del['del'] === substr($string, $offset, $del['len'])) {
+
+                    $content = substr($string, $lastOffset, $offset - $lastOffset);
+                    $remaining = substr($string, $offset + $del['len']);
+
+                    $currentDelimiter = $del['del'];
+                    $lastOffset = $offset + $del['len'];
+
+                    $parts[] = ['content' => trim($content), 'delimiter' => $lastDelimiter];
+
+                    if ($abortAfterFirstMatch) {
+                        $parts[] = ['content' => trim($remaining), 'delimiter' => $currentDelimiter];
+                        return $parts;
+                    }
+
+                    $lastDelimiter = $currentDelimiter;
+
+                    $openBlocks = static::trackOpenBlocksFromToken($char, $openBlocks);
+                    continue 2;
+                }
+            }
+
+            $openBlocks = static::trackOpenBlocksFromToken($char, $openBlocks);
+        }
+
+        $parts[] = ['content' => trim($remaining), 'delimiter' => $currentDelimiter];
+
+        return $parts;
+    }
+
     private static function splitContextStringBy(string $delimiter, string $string, bool $abortAfterFirstMatch = false): array
     {
-        $array = [];
+        $parts = [];
         $delimiterLen = strlen($delimiter);
 
         while (true) {
@@ -507,13 +515,13 @@ class Resolver
             }
 
             if ($body !== null) {
-                $array[] = trim($body);
+                $parts[] = trim($body);
             } else {
-                $array[] = trim($string);
+                $parts[] = trim($string);
                 break;
             }
         }
-        return $array;
+        return $parts;
     }
 
     /**
