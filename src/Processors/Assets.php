@@ -113,6 +113,7 @@ class Assets extends Processor
 
         if (in_array(static::FLAG_INLINE, $flags, true)) {
             $parser = new AssetParser($this->basedir, $this->config, $this->cache);
+            $lineBreak = PHP_EOL;
 
             switch ($assetFile->path()->extension) {
 
@@ -120,12 +121,12 @@ class Assets extends Processor
                 case 'scss':
                 case 'sass':
                     $content = trim($parser->parse($assetFile, $bindings));
-                    return empty($content) ? '' : sprintf("<style type=\"text/css\">%s</style>", $content);
+                    return empty($content) ? '' : "<style type=\"text/css\">{$lineBreak}{$content}{$lineBreak}</style>";
                     break;
 
                 case 'js':
                     $content = trim($parser->parse($assetFile, $bindings));
-                    return empty($content) ? '' : sprintf("<script>%s</script>", $content);
+                    return empty($content) ? '' : "<script>{$lineBreak}{$content}{$lineBreak}</script>";
                     break;
             }
 

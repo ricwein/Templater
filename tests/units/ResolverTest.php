@@ -58,7 +58,8 @@ class ResolverTest extends TestCase
             'value1' => 'yay',
             'value2' => true,
             'nested' => ['test' => 'success'],
-            'inline_array' => "['value1', 'value2']",
+            'array' => ['value1', 'value2'],
+            'nestedArray' => [['val11', 'val12'], ['val21', 'val22']],
             'file' => new File(new Storage\Disk(__FILE__)),
         ];
         $tests = [
@@ -66,6 +67,9 @@ class ResolverTest extends TestCase
             'value2' => true,
 
             'nested.test' => 'success',
+            'array[0]' => 'value1',
+            'array[1]' => 'value2',
+            //'nestedArray[0][1]' => 'val21',
 
             'file.path().directory' => dirname(__FILE__),
             'file.path().extension' => 'php',
@@ -76,11 +80,7 @@ class ResolverTest extends TestCase
 
         $resolver = new Resolver($bindings);
         foreach ($tests as $input => $expection) {
-            try {
-                $resolved = $resolver->resolve((string)$input);
-            } catch (ReflectionException $e) {
-            } catch (\ricwein\Templater\Exceptions\RuntimeException $e) {
-            }
+            $resolved = $resolver->resolve((string)$input);
             $this->assertSame($expection, $resolved);
         }
     }
