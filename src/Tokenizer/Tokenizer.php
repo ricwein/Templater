@@ -85,6 +85,8 @@ class Tokenizer
         /** @var [ResultBlock, int]|null $openBlocks */
         $openBlocks = [];
 
+        $lastSymbol = null;
+
         /** @var Delimiter|null $lastDelimiter */
         $lastDelimiter = null;
 
@@ -115,13 +117,17 @@ class Tokenizer
 
                         // insert block with sub-symbols as a new node to our result-tree
                         $blockSymbols = $this->process($blockContent, $depth + 1);
-                        $result[] = $resultBlock->withSymbols($blockSymbols);
+                        $lastSymbol = $resultBlock->withSymbols($blockSymbols);
+                        $result[] = $lastSymbol;
                     } else {
 
                         // keep the whole block intact,
                         // just re-pad the content with the blocks open- and close-symbols
-                        $blockSymbol = new ResultSymbol(sprintf("%s%s%s", $resultBlock->block()->open()->symbol(), trim($blockContent), $resultBlock->block()->close()->symbol()), $lastDelimiter);
-                        $result[] = $blockSymbol;
+                        $lastSymbol = new ResultSymbol(
+                            sprintf("%s%s%s", $resultBlock->block()->open(), trim($blockContent), $resultBlock->block()->close()),
+                            $lastDelimiter
+                        );
+                        $result[] = $lastSymbol;
                     }
                 }
 
@@ -151,23 +157,35 @@ class Tokenizer
             foreach ($this->delimiterToken as $delimiter) {
                 if (substr($input, $offset, $delimiter->length()) === $delimiter->symbol()) {
 
-                    // only keep symbol, if it's not already processed before
-                    // e.g. if the previous symbol was a block
                     if ($lastOffset < $offset) {
-                        $content = substr($input, $lastOffset, $offset - $lastOffset);
+
+                        // only keep symbol, if it's not already processed before
+                        // e.g. if the previous symbol was a block
+                        $content = trim(substr($input, $lastOffset, $offset - $lastOffset));
+
+                        // encounter of symbol directly after an block (no delimiter in between)
+                        if ($lastSymbol instanceof ResultBlock) {
+                            $lastSymbol->withSuffix($content);
+
+                            // we need to reset the last-symbol, since we processed the
+                            // current symbol as an block-suffix
+                            $lastSymbol = null;
+                        } else {
+                            $lastSymbol = new ResultSymbol($content, $lastDelimiter);;
+                            $result[] = $lastSymbol;
+                        }
+
                     } else {
-                        $content = null;
+
+                        // set last-symbol since we encountered an delimiter, but
+                        // because we can skip the symbol, we set last-symbol to null
+                        $lastSymbol = null;
+
                     }
 
                     $remaining = substr($input, $offset + $delimiter->length());
                     $lastOffset = $offset + $delimiter->length();
-
                     $currentDelimiter = $delimiter;
-
-                    if ($content !== null) {
-                        $result[] = new ResultSymbol(trim($content), $lastDelimiter);
-                    }
-
                     $lastDelimiter = $currentDelimiter;
                     continue 2;
                 }
@@ -176,7 +194,11 @@ class Tokenizer
 
         $remaining = trim($remaining);
         if (!empty($remaining)) {
-            $result[] = new ResultSymbol($remaining, $lastDelimiter);
+            if ($lastSymbol instanceof ResultBlock) {
+                $lastSymbol->withSuffix($remaining);
+            } else {
+                $result[] = new ResultSymbol($remaining, $lastDelimiter);
+            }
         }
 
         return $result;

@@ -55,14 +55,6 @@ class ResultBlock
     }
 
     /**
-     * @return int
-     */
-    public function startOffset(): int
-    {
-        return $this->startOffset;
-    }
-
-    /**
      * @param ResultSymbol[]|ResultBlock[] $symbols
      * @return $this
      */

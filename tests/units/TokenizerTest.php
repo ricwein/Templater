@@ -108,13 +108,55 @@ class TokenizerTest extends TestCase
 
     public function testBlockPrefix()
     {
-        $testString = 'really.long.test.lol().last';
+        $testString = 'functionCall()';
+        $expected = [
+            (new ResultBlock(new Block('(', ')', true), null))->withPrefix('functionCall'),
+        ];
+        $this->assertEquals($expected, $this->tokenizer->tokenize($testString));
 
+        $testString = 'really.functionCall().last';
         $expected = [
             new ResultSymbol('really', null),
-            new ResultSymbol('long', new Delimiter('.')),
-            new ResultSymbol('test', new Delimiter('.')),
-            (new ResultBlock(new Block('(', ')', true), new Delimiter('.')))->withPrefix('lol'),
+            (new ResultBlock(new Block('(', ')', true), new Delimiter('.')))->withPrefix('functionCall'),
+            new ResultSymbol('last', new Delimiter('.'))
+        ];
+        $this->assertEquals($expected, $this->tokenizer->tokenize($testString));
+    }
+
+    public function testBlockSuffix()
+    {
+        $testString = 'really.()test';
+        $expected = [
+            new ResultSymbol('really', null),
+            (new ResultBlock(new Block('(', ')', true), new Delimiter('.')))->withSuffix('test'),
+        ];
+        $this->assertEquals($expected, $this->tokenizer->tokenize($testString));
+
+        $testString = '()test';
+        $expected = [
+            (new ResultBlock(new Block('(', ')', true), null))->withSuffix('test'),
+        ];
+        $this->assertEquals($expected, $this->tokenizer->tokenize($testString));
+
+        $testString = 'really.()test.last';
+        $expected = [
+            new ResultSymbol('really', null),
+            (new ResultBlock(new Block('(', ')', true), new Delimiter('.')))->withSuffix('test'),
+            new ResultSymbol('last', new Delimiter('.')),
+
+        ];
+        $this->assertEquals($expected, $this->tokenizer->tokenize($testString));
+    }
+
+    public function testNestedBlocks()
+    {
+        $testString = 'var.functionCall(test).last';
+
+        $expected = [
+            new ResultSymbol('var', null),
+            (new ResultBlock(new Block('(', ')', true), new Delimiter('.')))->withPrefix('functionCall')->withSymbols([
+                new ResultSymbol('test', null),
+            ]),
             new ResultSymbol('last', new Delimiter('.'))
         ];
 
