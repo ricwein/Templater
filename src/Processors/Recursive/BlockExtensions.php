@@ -12,7 +12,7 @@ use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpect
 use ricwein\FileSystem\Helper\Constraint;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\BaseFunction;
-use ricwein\Templater\Engine\Resolver;
+use ricwein\Templater\Resolver\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\RecursiveProcessor;

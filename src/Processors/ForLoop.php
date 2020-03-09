@@ -7,7 +7,7 @@ namespace ricwein\Templater\Processors;
 
 use ReflectionException;
 use ricwein\Templater\Engine\BaseFunction;
-use ricwein\Templater\Engine\Resolver;
+use ricwein\Templater\Resolver\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 

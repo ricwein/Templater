@@ -363,12 +363,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/ricwein/Tokenizer.git",
-                "reference": "b3f6c82f7e1ac0089160c72d96344123b959d878"
+                "reference": "2092cc159c285d9955d8ef78094338fcfed484d1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/b3f6c82f7e1ac0089160c72d96344123b959d878",
-                "reference": "b3f6c82f7e1ac0089160c72d96344123b959d878",
+                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/2092cc159c285d9955d8ef78094338fcfed484d1",
+                "reference": "2092cc159c285d9955d8ef78094338fcfed484d1",
                 "shasum": ""
             },
             "require": {
@@ -395,7 +395,7 @@
                 }
             ],
             "description": "configurable string tokenizer",
-            "time": "2020-03-04T10:12:42+00:00"
+            "time": "2020-03-09T19:30:52+00:00"
         },
         {
             "name": "scssphp/scssphp",
@@ -872,16 +872,16 @@
         },
         {
             "name": "phpspec/prophecy",
-            "version": "v1.10.2",
+            "version": "v1.10.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpspec/prophecy.git",
-                "reference": "b4400efc9d206e83138e2bb97ed7f5b14b831cd9"
+                "reference": "451c3cd1418cf640de218914901e51b064abb093"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpspec/prophecy/zipball/b4400efc9d206e83138e2bb97ed7f5b14b831cd9",
-                "reference": "b4400efc9d206e83138e2bb97ed7f5b14b831cd9",
+                "url": "https://api.github.com/repos/phpspec/prophecy/zipball/451c3cd1418cf640de218914901e51b064abb093",
+                "reference": "451c3cd1418cf640de218914901e51b064abb093",
                 "shasum": ""
             },
             "require": {
@@ -931,7 +931,7 @@
                 "spy",
                 "stub"
             ],
-            "time": "2020-01-20T15:57:02+00:00"
+            "time": "2020-03-05T15:02:03+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

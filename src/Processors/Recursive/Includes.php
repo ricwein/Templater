@@ -8,7 +8,7 @@ namespace ricwein\Templater\Processors\Recursive;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\BaseFunction;
-use ricwein\Templater\Engine\Resolver;
+use ricwein\Templater\Resolver\Resolver;
 use ricwein\Templater\Exceptions\Exception;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;

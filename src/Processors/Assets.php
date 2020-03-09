@@ -10,7 +10,7 @@ use Phpfastcache\Exceptions\PhpfastcacheInvalidArgumentException;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\AssetParser;
 use ricwein\Templater\Engine\BaseFunction;
-use ricwein\Templater\Engine\Resolver;
+use ricwein\Templater\Resolver\Resolver;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
 use ricwein\FileSystem\Exceptions\ConstraintsException;
