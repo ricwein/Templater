@@ -4,19 +4,24 @@
 namespace ricwein\Templater\Resolver;
 
 
+use ricwein\Templater\Exceptions\RuntimeException;
+
 class Symbol
 {
-    public const TYPE_NULL = 0;
+    public const TYPE_NULL = 'NULL';
 
-    public const TYPE_VARIABLE = 1;
-    public const TYPE_STRING = 2;
+    public const TYPE_STRING = 'string';
+    public const TYPE_FLOAT = 'float';
+    public const TYPE_INT = 'int';
+    public const TYPE_BOOL = 'bool';
 
-    public const TYPE_FLOAT = 4;
-    public const TYPE_INT = 8;
-    public const TYPE_BOOL = 16;
+    public const TYPE_OBJECT = 'object';
+    public const TYPE_ARRAY = 'array';
 
-    public const TYPE_OBJECT = 32;
-    public const TYPE_ARRAY = 64;
+    public const ANY_SCALAR = ['string', 'float', 'int', 'bool'];
+    public const ANY_DEFINEABLE = ['float', 'int', 'bool', 'object', 'array'];
+    public const ANY_ITERABLE = ['object', 'array'];
+    public const ANY_KEYPATH_PART = ['string', 'int'];
 
     /**
      * @var mixed
@@ -26,11 +31,24 @@ class Symbol
     /**
      * @var int
      */
-    private int $type;
+    private string $type;
 
-    public function __construct($value, int $type = null)
+    /**
+     * @var bool
+     */
+    private bool $breakKeyPath;
+
+    /**
+     * Symbol constructor.
+     * @param $value
+     * @param bool $breakKeyPath
+     * @param string|null $type
+     * @throws RuntimeException
+     */
+    public function __construct($value, bool $breakKeyPath, ?string $type = null)
     {
         $this->value = $value;
+        $this->breakKeyPath = $breakKeyPath;
 
         if ($type !== null) {
             $this->type = $type;
@@ -43,6 +61,10 @@ class Symbol
 
                 case is_float($value):
                     $this->type = self::TYPE_FLOAT;
+                    break;
+
+                case is_string($value):
+                    $this->type = self::TYPE_STRING;
                     break;
 
                 case is_bool($value):
@@ -62,7 +84,10 @@ class Symbol
                     break;
 
                 default:
-                    $this->type = self::TYPE_VARIABLE;
+                    throw new RuntimeException(sprintf(
+                        "Unsupported DataType %s.",
+                        is_object($value) ? sprintf("class(%s)", get_class($value)) : gettype($value)
+                    ), 500);
                     break;
             }
         }
@@ -73,13 +98,21 @@ class Symbol
         return $this->value;
     }
 
-    public function type(): int
+    public function breakKeyPath(): bool
+    {
+        return $this->breakKeyPath;
+    }
+
+    public function type(): string
     {
         return $this->type;
     }
 
-    public function is(int $type): bool
+    public function is($type): bool
     {
+        if (is_array($type)) {
+            return in_array($this->type, $type, true);
+        }
         return $this->type === $type;
     }
 }

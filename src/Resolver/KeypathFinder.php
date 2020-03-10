@@ -2,8 +2,6 @@
 
 namespace ricwein\Templater\Resolver;
 
-use ricwein\Templater\Exceptions\RuntimeException;
-
 /**
  * A state aware object depth-first search iterator.
  * @package ricwein\Templater\Engine
@@ -34,44 +32,25 @@ class KeypathFinder
         return $this;
     }
 
-    /**
-     * @param mixed $key
-     * @return self
-     * @throws RuntimeException
-     */
-    public function next($key): self
+    public function next($key): bool
     {
         $this->path[] = $key;
-        $this->current = static::fetchValueFrom($this->current, $key, $this->path);
-        return $this;
+
+        switch (true) {
+            case is_array($this->current) && (is_string($key) || is_numeric($key)) && array_key_exists($key, $this->current):
+                $this->current = $this->current[$key];
+                return true;
+
+            case is_object($this->current) && (property_exists($this->current, $key) || isset($this->current->$key)):
+                $this->current = $this->current->$key;
+                return true;
+        }
+
+        return false;
     }
 
     public function get()
     {
         return $this->current;
-    }
-
-    /**
-     * @param $source
-     * @param $key
-     * @param string[] $path
-     * @return mixed
-     * @throws RuntimeException
-     */
-    private static function fetchValueFrom($source, $key, array $path)
-    {
-        switch (true) {
-            case is_array($source) && (is_string($key) || is_numeric($key)) && array_key_exists($key, $source):
-                return $source[$key];
-
-            case is_object($source) && (property_exists($source, $key) || isset($source->$key)):
-                return $source->$key;
-        }
-
-        throw new RuntimeException(sprintf(
-            "Unable to resolve variable path %s. Unknown key: %s",
-            implode('.', $path),
-            $key
-        ), 500);
     }
 }

@@ -239,9 +239,8 @@ class Resolver
         // iterate through list of symbols
         // resolve depth-first
         // respects different symbol delimiters like:
-        //   keypaths, function-calls, conditions or operations
+        //   [keypaths, function-calls, conditions, operations]
         foreach ($symbols as $symbol) {
-
             // resolve the current symbol
 
             /** @var Symbol $resolvedSymbol */
@@ -250,13 +249,14 @@ class Resolver
             if ($symbol instanceof ResultBlock) {
                 $resolvedSymbol = $this->resolveSymbolBlock($symbol, $value);
             } else if ($symbol instanceof ResultSymbol) {
-                $resolvedSymbol = new Symbol($symbol->asGuessedType());
+                $resolvedSymbol = new Symbol($symbol->asGuessedType(), false);
             }
 
             // check if the last symbol is part of a bindings keypath
             if (
-                ($resolvedSymbol->is(Symbol::TYPE_VARIABLE) && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))) ||
-                (in_array($resolvedSymbol->type(), [Symbol::TYPE_FLOAT, Symbol::TYPE_INT], true) && $symbol->delimiter() !== null && $symbol->delimiter()->is('.'))
+                !$resolvedSymbol->breakKeyPath()
+                && $resolvedSymbol->is(Symbol::ANY_KEYPATH_PART)
+                && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))
             ) {
 
                 // overload current keypath bindings with the previous symbol, if it was an inline array and
@@ -265,8 +265,19 @@ class Resolver
                     $keyPathFinder = new KeypathFinder($lastSymbol->value());
                 }
 
-                $keyPathFinder->next($resolvedSymbol->value());
-                $value = $keyPathFinder->get();
+                if ($keyPathFinder->next($resolvedSymbol->value())) {
+                    $value = $keyPathFinder->get();
+                } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINEABLE)) {
+                    $value = $resolvedSymbol->value();
+                } else {
+                    throw new RuntimeException(sprintf(
+                        "Unable to resolve variable path %s. Unknown key: %s",
+                        new Result($symbols),
+                        $symbol
+                    ), 500);
+
+                }
+
             } else {
                 $keyPathFinder->reset();
                 $value = $resolvedSymbol->value();
@@ -290,31 +301,31 @@ class Resolver
         switch (true) {
             // "test"
             case SymbolHelper::isString($block):
-                return new Symbol($this->resolveSymbolStringBlock($block), Symbol::TYPE_STRING);
+                return new Symbol($this->resolveSymbolStringBlock($block), true, Symbol::TYPE_STRING);
 
             // test()
             case SymbolHelper::isDirectUserFunctionCall($block):
-                return new Symbol($this->resolveSymbolFunctionBlock($block, false));
+                return new Symbol($this->resolveSymbolFunctionBlock($block, false), true);
 
             // value | test()
             case SymbolHelper::isChainedUserFunctionCall($block):
-                return new Symbol($this->resolveSymbolFunctionBlock($block, true, $stateVar));
+                return new Symbol($this->resolveSymbolFunctionBlock($block, true, $stateVar), true);
 
             // test.( first.name )
             case SymbolHelper::isPriorityBrace($block):
-                return new Symbol($this->resolveSymbols($block->symbols()));
+                return new Symbol($this->resolveSymbols($block->symbols()), false);
 
             // test.exec()
             case SymbolHelper::isMethodCall($block):
-                return new Symbol($this->resolveMethodCall($block, $stateVar));
+                return new Symbol($this->resolveMethodCall($block, $stateVar), true);
 
             // [test.value, 1, 'string']
             case SymbolHelper::isInlineArray($block):
-                return new Symbol($this->buildArrayFromBlockToken($block), Symbol::TYPE_ARRAY);
+                return new Symbol($this->buildArrayFromBlockToken($block), true, Symbol::TYPE_ARRAY);
 
             // {'key': test.value }
             case SymbolHelper::isInlineAssoc($block):
-                return new Symbol($this->buildAssocFromBlockToken($block), Symbol::TYPE_ARRAY);
+                return new Symbol($this->buildAssocFromBlockToken($block), true, Symbol::TYPE_ARRAY);
         }
 
         throw new RuntimeException(sprintf("Unsupported Block-Type: %s%s%s%s in %s",

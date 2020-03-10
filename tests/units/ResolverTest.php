@@ -74,10 +74,9 @@ class ResolverTest extends TestCase
 
             'file.path().directory' => dirname(__FILE__),
             'file.path().extension' => 'php',
-            'file.getType()' => 'php',
-
-            /* @TODO: add iterative inline declaration resolution to Resolver::resolveVarPathToValue() */
-            //'inline_array' => ['value1', 'value2'],
+            'file.getType()' => 'text/x-php',
+            'file.getType(false)' => 'text/x-php',
+            'file.getType(true)' => 'text/x-php; charset=us-ascii',
         ];
 
         $resolver = new Resolver($bindings);
@@ -130,28 +129,8 @@ class ResolverTest extends TestCase
         }
     }
 
-    public function testContextStringSplitting()
-    {
-        return;
-
-        $tests = [
-            'exceptions | first().code' => [
-                ['content' => 'exceptions', 'delimiter' => null],
-                ['content' => 'first()', 'delimiter' => '|'],
-                ['content' => 'code', 'delimiter' => '.'],
-            ]
-        ];
-
-        foreach ($tests as $input => $expection) {
-            $resolved = Resolver::splitContextStringOnDelimiters(['.', '|'], $input, false);
-            $this->assertSame($expection, $resolved);
-        }
-    }
-
     public function testFunctionCalls()
     {
-        return;
-
         $bindings = [
             'data' => [true, false],
             'nested' => ['test' => 'success'],
@@ -161,17 +140,20 @@ class ResolverTest extends TestCase
         $functions = (new DefaultFunctions(new Config()))->get();
         $resolver = new Resolver($bindings, $functions);
 
-        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | first"));
-        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'] | last"));
-        $this->assertSame(2, $resolver->resolve("['value1', 'value2'] | count"));
-        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | keys | first"));
-        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | keys | last"));
-        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip | first"));
-        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | flip | keys | first"));
-        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip.value1"));
-        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | flip.value2"));
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | first()"));
+        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'] | last()"));
+        $this->assertSame(2, $resolver->resolve("['value1', 'value2'] | count()"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | keys() | first()"));
 
-        $this->assertSame('success', $resolver->resolve("nested | first"));
+        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | keys() | last()"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip() | first()"));
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | flip() | keys() | first()"));
+        $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip().value1"));
+        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | flip().value2"));
+
+        $this->assertSame('success', $resolver->resolve("nested | first()"));
+        return;
+
         $this->assertSame('yay', $resolver->resolve("data | first ? 'yay'"));
         $this->assertSame('', $resolver->resolve("data | last ? 'yay'"));
         $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));

@@ -23,7 +23,7 @@ class SymbolHelper
             return false;
         }
 
-        if ($block->isBlock('()')) {
+        if (!$block->isBlock('()')) {
             return false;
         }
 
@@ -36,7 +36,7 @@ class SymbolHelper
             return false;
         }
 
-        if ($block->isBlock('()')) {
+        if (!$block->isBlock('()')) {
             return false;
         }
 
