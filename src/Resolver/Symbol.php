@@ -19,8 +19,8 @@ class Symbol
     public const TYPE_ARRAY = 'array';
 
     public const ANY_SCALAR = ['string', 'float', 'int', 'bool'];
-    public const ANY_DEFINEABLE = ['float', 'int', 'bool', 'object', 'array'];
-    public const ANY_ITERABLE = ['object', 'array'];
+    public const ANY_DEFINEABLE = ['float', 'int', 'bool','object', 'array'];
+    public const ANY_ACCESSABLE = ['object', 'array'];
     public const ANY_KEYPATH_PART = ['string', 'int'];
 
     /**
@@ -36,19 +36,19 @@ class Symbol
     /**
      * @var bool
      */
-    private bool $breakKeyPath;
+    private bool $interruptKeyPath;
 
     /**
      * Symbol constructor.
      * @param $value
-     * @param bool $breakKeyPath
+     * @param bool $interruptKeyPath
      * @param string|null $type
      * @throws RuntimeException
      */
-    public function __construct($value, bool $breakKeyPath, ?string $type = null)
+    public function __construct($value, bool $interruptKeyPath, ?string $type = null)
     {
         $this->value = $value;
-        $this->breakKeyPath = $breakKeyPath;
+        $this->interruptKeyPath = $interruptKeyPath;
 
         if ($type !== null) {
             $this->type = $type;
@@ -98,9 +98,9 @@ class Symbol
         return $this->value;
     }
 
-    public function breakKeyPath(): bool
+    public function interruptKeyPath(): bool
     {
-        return $this->breakKeyPath;
+        return $this->interruptKeyPath;
     }
 
     public function type(): string

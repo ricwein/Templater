@@ -30,15 +30,13 @@ class ResolverTest extends TestCase
         $this->assertSame(['object1' => ['key1' => 'value1'], 'object2' => ['key2' => 'value2']], $resolver->resolve("{'object1': {'key1': 'value1'}, 'object2' : {'key2': 'value2'}}"));
         $this->assertSame('value1', $resolver->resolve("['value1', 'value2'].0"));
         $this->assertSame('value2', $resolver->resolve("['value1', 'value2'].1"));
-        return;
-        //$this->assertSame('value1', $resolver->resolve("['value1', 'value2'][0]"));
-        //$this->assertSame('value2', $resolver->resolve("['value1', 'value2'][1]"));
-
-
+        $this->assertSame('value1', $resolver->resolve("['value1', 'value2'][0]"));
+        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'][1]"));
     }
 
     public function testUnmatchingBindings()
     {
+        $this->markTestSkipped();
         $resolver = new Resolver();
 
         $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
@@ -47,6 +45,8 @@ class ResolverTest extends TestCase
 
     public function testNestedUnmatchingBindings()
     {
+        $this->markTestSkipped();
+
         $resolver = new Resolver();
 
         $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
@@ -63,14 +63,15 @@ class ResolverTest extends TestCase
             'nestedArray' => [['val11', 'val12'], ['val21', 'val22']],
             'file' => new File(new Storage\Disk(__FILE__)),
         ];
+
         $tests = [
             'value1' => 'yay',
             'value2' => true,
 
             'nested.test' => 'success',
-//            'array[0]' => 'value1',
-//            'array[1]' => 'value2',
-//            'nestedArray[0][1]' => 'val21',
+            'array[0]' => 'value1',
+            'array[1]' => 'value2',
+            'nestedArray[0][1]' => 'val21',
 
             'file.path().directory' => dirname(__FILE__),
             'file.path().extension' => 'php',
@@ -88,7 +89,7 @@ class ResolverTest extends TestCase
 
     public function testConditionResolving()
     {
-        return;
+        $this->markTestSkipped();
 
         $tests = [
             "true ? 'yay'" => 'yay',
@@ -112,12 +113,13 @@ class ResolverTest extends TestCase
 
     public function testConditionalBindingResolving()
     {
-        return;
+        $this->markTestSkipped();
 
         $bindings = [
             'data' => [true, false],
             'strings' => ['yay', 'no', 'another string'],
         ];
+
         $tests = [
             "'yay' in strings ? 'exists'" => 'exists',
         ];
@@ -141,11 +143,11 @@ class ResolverTest extends TestCase
         $resolver = new Resolver($bindings, $functions);
 
         $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | first()"));
-        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'] | last()"));
+        $this->assertSame('value2', $resolver->resolve("['value1', 'value2'] | last"));
         $this->assertSame(2, $resolver->resolve("['value1', 'value2'] | count()"));
         $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | keys() | first()"));
 
-        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | keys() | last()"));
+        $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | keys | last()"));
         $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip() | first()"));
         $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | flip() | keys() | first()"));
         $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip().value1"));

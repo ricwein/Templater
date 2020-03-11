@@ -2,10 +2,6 @@
 
 namespace ricwein\Templater\Engine;
 
-use ReflectionException;
-use ReflectionFunction;
-use ReflectionMethod;
-use ReflectionParameter;
 use ricwein\Templater\Exceptions\RuntimeException;
 use TypeError;
 
@@ -13,12 +9,6 @@ class BaseFunction
 {
     private string $__name;
     private ?string $__shortName;
-
-    /**
-     * @var ReflectionParameter[]|null
-     */
-    private ?array $__parameters = null;
-    private ?int $__requiredParameters = null;
 
     /**
      * @var callable
@@ -36,41 +26,6 @@ class BaseFunction
         $this->__name = $name;
         $this->__function = $function;
         $this->__shortName = $shortName;
-    }
-
-    /**
-     * @return array
-     * @throws ReflectionException
-     */
-    public function getParameters(): array
-    {
-        if ($this->__parameters === null) {
-            $this->runReflection();
-        };
-
-        return $this->__parameters;
-    }
-
-    /**
-     * @return int
-     * @throws ReflectionException
-     */
-    public function getNumberOfRequiredParameters(): int
-    {
-        if ($this->__requiredParameters === null) {
-            $this->runReflection();
-        }
-        return $this->__requiredParameters;
-    }
-
-    /**
-     * @throws ReflectionException
-     */
-    private function runReflection()
-    {
-        $reflection = is_array($this->__function) ? new ReflectionMethod($this->__function[0], $this->__function[1]) : new ReflectionFunction($this->__function);
-        $this->__parameters = $reflection->getParameters();
-        $this->__requiredParameters = $reflection->getNumberOfRequiredParameters();
     }
 
     public function getName(): string

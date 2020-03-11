@@ -4,10 +4,39 @@
 namespace ricwein\Templater\Resolver;
 
 use ricwein\Tokenizer\Result\ResultBlock;
+use ricwein\Tokenizer\Result\ResultSymbol;
 use ricwein\Tokenizer\Result\ResultSymbolBase;
 
 class SymbolHelper
 {
+    public static function isFloat(array $symbols): bool
+    {
+        if (count($symbols) !== 2) {
+            return false;
+        }
+
+        $lhs = reset($symbols);
+        $rhs = end($symbols);
+
+        if (!$lhs instanceof ResultSymbol || !$rhs instanceof ResultSymbol) {
+            return false;
+        }
+
+        if (!is_numeric($lhs->symbol()) || strlen($lhs->symbol()) !== strlen((string)(int)$lhs->symbol())) {
+            return false;
+        }
+
+        if (!is_numeric($rhs->symbol()) || strlen($rhs->symbol()) !== strlen((string)(int)$rhs->symbol())) {
+            return false;
+        }
+
+        if ($rhs->delimiter() === null || !$rhs->delimiter()->is('.')) {
+            return false;
+        }
+
+        return true;
+    }
+
     public static function isString(ResultSymbolBase $block): bool
     {
         if (!$block instanceof ResultBlock) {
@@ -95,7 +124,7 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isArrayAccess(ResultSymbolBase $block): bool
+    public static function isArrayAccess(ResultSymbolBase $block, ?Symbol $previousSymbol): bool
     {
         if (!$block instanceof ResultBlock) {
             return false;
@@ -105,6 +134,12 @@ class SymbolHelper
             return false;
         }
 
-        return $block->prefix() !== null;
+        if ($previousSymbol === null) {
+            return $block->prefix() !== null;
+        } elseif ($previousSymbol->is(Symbol::TYPE_ARRAY)) {
+            return true;
+        }
+
+        return false;
     }
 }
