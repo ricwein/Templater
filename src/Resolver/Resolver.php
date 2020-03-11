@@ -76,6 +76,9 @@ class Resolver
             '!=' => function ($lhs, $rhs): bool {
                 return $lhs !== $rhs;
             },
+            '<=>' => function ($lhs, $rhs): int {
+                return $lhs <=> $rhs;
+            },
             '>=' => function ($lhs, $rhs): bool {
                 return $lhs >= $rhs;
             },
@@ -301,9 +304,10 @@ class Resolver
             return [new Symbol($symbol->asGuessedType(), false)];
         }
 
-        $function = $this->getFunction($symbol->symbol());
+        $functionName = trim($symbol->symbol());
+        $function = $this->getFunction($functionName);
         if ($function === null) {
-            throw new RuntimeException("Call to unknown function: {$symbol->symbol()}()", 500);
+            throw new RuntimeException("Call to unknown function: {$functionName}()", 500);
         }
 
         return [new Symbol($function->call([$stateVar]), true)];
@@ -320,13 +324,16 @@ class Resolver
     {
         switch (true) {
 
-            case SymbolHelper::isString($block): // "test"
+            // "test"
+            case SymbolHelper::isString($block):
                 return [new Symbol($this->resolveSymbolStringBlock($block), true, Symbol::TYPE_STRING)];
 
-            case SymbolHelper::isDirectUserFunctionCall($block): // test()
+            // test()
+            case SymbolHelper::isDirectUserFunctionCall($block):
                 return [new Symbol($this->resolveSymbolFunctionBlock($block, false), true)];
 
-            case SymbolHelper::isChainedUserFunctionCall($block): // value | test()
+            // value | test()
+            case SymbolHelper::isChainedUserFunctionCall($block):
                 return [new Symbol($this->resolveSymbolFunctionBlock($block, true, $stateVar), true)];
 
             // test[0] || [some, things][0]
@@ -334,16 +341,20 @@ class Resolver
                 $blockResult = new Symbol($this->resolveSymbols($block->symbols()), false);
                 return $block->prefix() !== null ? [new Symbol($block->prefix(), false), $blockResult] : [$blockResult];
 
-            case SymbolHelper::isPriorityBrace($block): // test.( first.name )
+            // test.( first.name )
+            case SymbolHelper::isPriorityBrace($block):
                 return [new Symbol($this->resolveSymbols($block->symbols()), false)];
 
-            case SymbolHelper::isMethodCall($block): // test.exec()
+            // test.exec()
+            case SymbolHelper::isMethodCall($block):
                 return [new Symbol($this->resolveMethodCall($block, $stateVar), true)];
 
-            case SymbolHelper::isInlineArray($block): // [test.value, 1, 'string']
+            // [test.value, 1, 'string']
+            case SymbolHelper::isInlineArray($block):
                 return [new Symbol($this->buildArrayFromBlockToken($block), true, Symbol::TYPE_ARRAY)];
 
-            case SymbolHelper::isInlineAssoc($block): // {'key': test.value }
+            // {'key': test.value }
+            case SymbolHelper::isInlineAssoc($block):
                 return [new Symbol($this->buildAssocFromBlockToken($block), true, Symbol::TYPE_ARRAY)];
         }
 

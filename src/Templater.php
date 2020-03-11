@@ -18,7 +18,7 @@ use ricwein\FileSystem\File;
 use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Engine\BaseFunction;
-use ricwein\Templater\Engine\DefaultFunctions;
+use ricwein\Templater\Engine\CoreFunctions;
 use ricwein\Templater\Exceptions\RuntimeException as TemplateRuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Processors;
@@ -73,7 +73,7 @@ class Templater
 
     private function loadDefaultFunctions()
     {
-        foreach ((new DefaultFunctions($this->config))->get() as $function) {
+        foreach ((new CoreFunctions($this->config))->get() as $function) {
             $this->addFunction($function);
         }
     }

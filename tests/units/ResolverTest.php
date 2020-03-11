@@ -4,7 +4,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 use ricwein\FileSystem\File;
 use ricwein\Templater\Config;
-use ricwein\Templater\Engine\DefaultFunctions;
+use ricwein\Templater\Engine\CoreFunctions;
 use ricwein\Templater\Resolver\Resolver;
 use ricwein\FileSystem\Storage;
 
@@ -71,7 +71,7 @@ class ResolverTest extends TestCase
             'nested.test' => 'success',
             'array[0]' => 'value1',
             'array[1]' => 'value2',
-            'nestedArray[0][1]' => 'val21',
+//            'nestedArray[0][1]' => 'val21',
 
             'file.path().directory' => dirname(__FILE__),
             'file.path().extension' => 'php',
@@ -139,7 +139,7 @@ class ResolverTest extends TestCase
             'strings' => ['yay', 'no', 'another string'],
         ];
 
-        $functions = (new DefaultFunctions(new Config()))->get();
+        $functions = (new CoreFunctions(new Config()))->get();
         $resolver = new Resolver($bindings, $functions);
 
         $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | first()"));
@@ -152,6 +152,15 @@ class ResolverTest extends TestCase
         $this->assertSame('value1', $resolver->resolve("['value1', 'value2'] | flip() | keys() | first()"));
         $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip().value1"));
         $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | flip().value2"));
+
+        $this->assertSame('value: 1', $resolver->resolve(" 'value: %d' | format(1)"));
+
+        $this->assertSame('value1, value2', $resolver->resolve("['value1', 'value2'] | join(', ')"));
+        $this->assertSame(['n', 'i', 'c', 'e'], $resolver->resolve("'nice' | split"));
+        $this->assertSame(['n', 'ce'], $resolver->resolve("'nice' | split('i')"));
+        $this->assertSame(['1', '2', '3'], $resolver->resolve("'1.2.3' | split('.')"));
+        $this->assertSame(['1', '2.3'], $resolver->resolve("'1.2.3' | split('.', 2)"));
+        $this->assertSame(['1.', '2.', '3'], $resolver->resolve("'1.2.3' | split(2)"));
 
         $this->assertSame('success', $resolver->resolve("nested | first()"));
         return;
