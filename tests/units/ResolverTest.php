@@ -36,7 +36,6 @@ class ResolverTest extends TestCase
 
     public function testUnmatchingBindings()
     {
-        $this->markTestSkipped();
         $resolver = new Resolver();
 
         $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
@@ -45,8 +44,6 @@ class ResolverTest extends TestCase
 
     public function testNestedUnmatchingBindings()
     {
-        $this->markTestSkipped();
-
         $resolver = new Resolver();
 
         $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
@@ -64,27 +61,24 @@ class ResolverTest extends TestCase
             'file' => new File(new Storage\Disk(__FILE__)),
         ];
 
-        $tests = [
-            'value1' => 'yay',
-            'value2' => true,
+        $functions = (new CoreFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
 
-            'nested.test' => 'success',
-            'array[0]' => 'value1',
-            'array[1]' => 'value2',
-//            'nestedArray[0][1]' => 'val21',
+        $this->assertSame('yay', $resolver->resolve('value1'));
+        $this->assertSame(true, $resolver->resolve('value2'));
+        $this->assertSame('success', $resolver->resolve('nested.test'));
+        $this->assertSame('value1', $resolver->resolve('array[0]'));
+        $this->assertSame('value2', $resolver->resolve('array[1]'));
 
-            'file.path().directory' => dirname(__FILE__),
-            'file.path().extension' => 'php',
-            'file.getType()' => 'text/x-php',
-            'file.getType(false)' => 'text/x-php',
-            'file.getType(true)' => 'text/x-php; charset=us-ascii',
-        ];
+        $this->assertSame('val12', $resolver->resolve('nestedArray[0][1]'));
+        $this->assertSame('val21', $resolver->resolve('nestedArray[1][0]'));
+        $this->assertSame('val21', $resolver->resolve('nestedArray[1] | first'));
 
-        $resolver = new Resolver($bindings);
-        foreach ($tests as $input => $expection) {
-            $resolved = $resolver->resolve((string)$input);
-            $this->assertSame($expection, $resolved);
-        }
+        $this->assertSame(dirname(__FILE__), $resolver->resolve('file.path().directory'));
+        $this->assertSame('php', $resolver->resolve('file.path().extension'));
+        $this->assertSame('text/x-php', $resolver->resolve('file.getType()'));
+        $this->assertSame('text/x-php', $resolver->resolve('file.getType(false)'));
+        $this->assertSame('text/x-php; charset=us-ascii', $resolver->resolve('file.getType(true)'));
     }
 
     public function testConditionResolving()
@@ -153,6 +147,8 @@ class ResolverTest extends TestCase
         $this->assertSame(0, $resolver->resolve("['value1', 'value2'] | flip().value1"));
         $this->assertSame(1, $resolver->resolve("['value1', 'value2'] | flip().value2"));
 
+        $this->assertSame('success', $resolver->resolve("nested | first()"));
+
         $this->assertSame('value: 1', $resolver->resolve(" 'value: %d' | format(1)"));
 
         $this->assertSame('value1, value2', $resolver->resolve("['value1', 'value2'] | join(', ')"));
@@ -162,7 +158,13 @@ class ResolverTest extends TestCase
         $this->assertSame(['1', '2.3'], $resolver->resolve("'1.2.3' | split('.', 2)"));
         $this->assertSame(['1.', '2.', '3'], $resolver->resolve("'1.2.3' | split(2)"));
 
-        $this->assertSame('success', $resolver->resolve("nested | first()"));
+        $this->assertSame('["value1","value2"]', $resolver->resolve("['value1', 'value2'] | json_encode()"));
+        $this->assertSame("[\n    \"value1\",\n    \"value2\"\n]", $resolver->resolve("['value1', 'value2'] | json_encode(constant('JSON_PRETTY_PRINT'))"));
+
+        $this->assertSame(["value1", "value2", "value3", "value4"], $resolver->resolve("['value1', 'value2'] | merge(['value3', 'value4'])"));
+
+        $this->assertSame('Test succeeded', $resolver->resolve("'Test failed' | replace('failed', 'succeeded')"));
+        $this->assertSame('Test succeeded', $resolver->resolve("'%this% %status%' | replace({'%this%': 'Test', '%status%': 'succeeded'})"));
         return;
 
         $this->assertSame('yay', $resolver->resolve("data | first ? 'yay'"));

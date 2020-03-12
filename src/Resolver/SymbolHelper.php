@@ -124,7 +124,7 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isArrayAccess(ResultSymbolBase $block, ?Symbol $previousSymbol): bool
+    public static function isArrayAccess(ResultSymbolBase $block, $currentStateVar = null): bool
     {
         if (!$block instanceof ResultBlock) {
             return false;
@@ -134,9 +134,9 @@ class SymbolHelper
             return false;
         }
 
-        if ($previousSymbol === null) {
+        if ($currentStateVar === null) {
             return $block->prefix() !== null;
-        } elseif ($previousSymbol->is(Symbol::TYPE_ARRAY)) {
+        } elseif (is_array($currentStateVar)) {
             return true;
         }
 

@@ -19,8 +19,8 @@ class Symbol
     public const TYPE_ARRAY = 'array';
 
     public const ANY_SCALAR = ['string', 'float', 'int', 'bool'];
-    public const ANY_DEFINEABLE = ['float', 'int', 'bool','object', 'array'];
-    public const ANY_ACCESSABLE = ['object', 'array'];
+    public const ANY_DEFINABLE = ['float', 'int', 'bool','object', 'array'];
+    public const ANY_ACCESSIBLE = ['object', 'array'];
     public const ANY_KEYPATH_PART = ['string', 'int'];
 
     /**

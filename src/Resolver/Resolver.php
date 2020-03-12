@@ -64,15 +64,6 @@ class Resolver
         }
 
         static::$operators = [
-            '>' => function ($lhs, $rhs): bool {
-                return $lhs > $rhs;
-            },
-            '<' => function ($lhs, $rhs): bool {
-                return $lhs < $rhs;
-            },
-            '==' => function ($lhs, $rhs): bool {
-                return $lhs === $rhs;
-            },
             '!=' => function ($lhs, $rhs): bool {
                 return $lhs !== $rhs;
             },
@@ -84,6 +75,21 @@ class Resolver
             },
             '<=' => function ($lhs, $rhs): bool {
                 return $lhs <= $rhs;
+            },
+            '>' => function ($lhs, $rhs): bool {
+                return $lhs > $rhs;
+            },
+            '<' => function ($lhs, $rhs): bool {
+                return $lhs < $rhs;
+            },
+            '==' => function ($lhs, $rhs): bool {
+                return $lhs === $rhs;
+            },
+            ' b-or ' => function ($lhs, $rhs) {
+                return $lhs | $rhs;
+            },
+            ' b-and ' => function ($lhs, $rhs) {
+                return $lhs & $rhs;
             },
             ' in ' => function ($lhs, $rhs, string $operator): bool {
                 switch (true) {
@@ -132,13 +138,13 @@ class Resolver
             ' and ' => function ($lhs, $rhs): bool {
                 return $lhs && $rhs;
             },
-            ' && ' => function ($lhs, $rhs): bool {
+            '&&' => function ($lhs, $rhs): bool {
                 return $lhs && $rhs;
             },
             ' or ' => function ($lhs, $rhs): bool {
                 return $lhs || $rhs;
             },
-            ' || ' => function ($lhs, $rhs): bool {
+            '||' => function ($lhs, $rhs): bool {
                 return $lhs || $rhs;
             },
             ' xor ' => function ($lhs, $rhs): bool {
@@ -245,11 +251,11 @@ class Resolver
             $resolvedSymbols = [];
 
             if ($symbol instanceof ResultBlock) {
-                $resolvedSymbols = $this->resolveSymbolBlock($symbol, $value, $lastSymbol);
+                $resolvedSymbols = $this->resolveSymbolBlock($symbol, $value);
             } else if ($symbol instanceof ResultSymbol) {
                 $resolvedSymbols = $this->resolveSymbol($symbol, $value);
             } else {
-                throw new RuntimeException(sprintf("FATAL: Invalid ResultType: %s.", get_class($symbol)), 500);
+                throw new RuntimeException(sprintf("FATAL: Invalid Symbol type: %s.", get_class($symbol)), 500);
             }
 
             foreach ($resolvedSymbols as $resolvedSymbol) {
@@ -263,13 +269,13 @@ class Resolver
 
                     // overload current keypath bindings with the previous symbol, if it was an inline array and
                     // the current symbol is a keypath-part (.part) which points into this array
-                    if ($lastSymbol !== null && in_array($lastSymbol->type(), [Symbol::TYPE_ARRAY, Symbol::TYPE_OBJECT], true) && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))) {
+                    if ($lastSymbol !== null && $lastSymbol->is(Symbol::ANY_ACCESSIBLE) && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))) {
                         $keyPathFinder = new KeypathFinder($lastSymbol->value());
                     }
 
                     if ($keyPathFinder->next($resolvedSymbol->value())) {
                         $value = $keyPathFinder->get();
-                    } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINEABLE)) {
+                    } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
                         $value = $resolvedSymbol->value();
                     } else {
                         throw new RuntimeException(sprintf(
@@ -316,11 +322,10 @@ class Resolver
     /**
      * @param ResultBlock $block
      * @param mixed $stateVar
-     * @param Symbol|null $previousSymbol
      * @return Symbol[]
      * @throws RuntimeException
      */
-    private function resolveSymbolBlock(ResultBlock $block, $stateVar, ?Symbol $previousSymbol = null): array
+    private function resolveSymbolBlock(ResultBlock $block, $stateVar): array
     {
         switch (true) {
 
@@ -337,7 +342,7 @@ class Resolver
                 return [new Symbol($this->resolveSymbolFunctionBlock($block, true, $stateVar), true)];
 
             // test[0] || [some, things][0]
-            case SymbolHelper::isArrayAccess($block, $previousSymbol):
+            case SymbolHelper::isArrayAccess($block, $stateVar):
                 $blockResult = new Symbol($this->resolveSymbols($block->symbols()), false);
                 return $block->prefix() !== null ? [new Symbol($block->prefix(), false), $blockResult] : [$blockResult];
 

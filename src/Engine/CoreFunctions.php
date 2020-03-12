@@ -4,6 +4,14 @@ namespace ricwein\Templater\Engine;
 
 use RecursiveArrayIterator;
 use RecursiveIteratorIterator;
+use ricwein\FileSystem\Directory;
+use ricwein\FileSystem\Exceptions\AccessDeniedException;
+use ricwein\FileSystem\Exceptions\Exception;
+use ricwein\FileSystem\Exceptions\RuntimeException;
+use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
+use ricwein\FileSystem\File;
+use ricwein\FileSystem\Helper\Constraint;
+use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 
@@ -24,30 +32,47 @@ class CoreFunctions
     {
         $exposeFunctions = [
             'abs' => 'abs',
+            'round' => [$this, 'round'],
             'join' => [$this, 'join'],
             'split' => [$this, 'split'],
             'range' => [$this, 'split'],
             'dump' => [$this, 'dump'],
             'lower' => 'strtolower',
             'upper' => 'strtoupper',
+            'title' => [$this, 'strtotitle'],
+            'capitalize' => [$this, 'capitalize'],
+            'trim' => 'trim',
+            'nl2br' => 'nl2br',
+            'striptags' => 'strip_tags',
+            'json_encode' => 'json_encode',
+            'json_decode' => 'json_decode',
+            'constant' => [$this, 'mapConstant'],
+            'replace' => [$this, 'replace'],
             'count' => 'count',
+            'length' => [$this, 'length'],
             'sum' => 'array_sum',
             'keys' => 'array_keys',
             'values' => 'array_values',
             'column' => 'array_column',
             'sorted' => [$this, 'sort'],
+            'merge' => 'array_merge',
             'flip' => 'array_flip',
+            'reverse' => 'array_reverse',
             'flat' => [$this, 'flat'],
             'first' => [$this, 'first'],
             'last' => [$this, 'last'],
             'empty' => [$this, 'empty'],
-            'capitalize' => [$this, 'capitalize'],
             'format' => 'sprintf',
-            'date' => [$this, 'date']
+            'date' => [$this, 'date'],
+            'file' => [$this, 'getFile'],
+            'directory' => [$this, 'getDirectory'],
+            'url_encode' => 'rawurlencode',
+            'url_decode' => 'rawurldecode',
         ];
 
-        $functions = [];
-        $functions[] = new BaseFunction('escape', [$this, 'escape'], 'e');
+        $functions = [
+            new BaseFunction('escape', [$this, 'escape'], 'e'),
+        ];
 
         foreach ($exposeFunctions as $name => $callable) {
             $functions[] = new BaseFunction($name, $callable);
@@ -80,6 +105,23 @@ class CoreFunctions
     public function range($start, $end, int $steps = 1)
     {
         return range($start, $end, $steps);
+    }
+
+    public function length($variable): int
+    {
+        if (is_array($variable) || (is_object($variable) && $variable instanceof \Countable)) {
+            return count($variable);
+        }
+
+        if (is_string($variable) || (is_object($variable) && method_exists($variable, '__toString'))) {
+            return strlen((string)$variable);
+        }
+
+        if (is_object($variable) && $variable instanceof \Traversable) {
+            return iterator_count($variable);
+        }
+
+        return 0;
     }
 
     public function dump(...$variables): string
@@ -128,6 +170,11 @@ class CoreFunctions
         return ucfirst(strtolower($string));
     }
 
+    public function strtotitle(string $string): string
+    {
+        return mb_convert_case($string, MB_CASE_TITLE);
+    }
+
     /**
      * @inheritDoc
      * @throws UnexpectedValueException
@@ -160,5 +207,69 @@ class CoreFunctions
         }
 
         return $array;
+    }
+
+    public function replace(string $subject, $search, $replace = null): string
+    {
+        if ($replace !== null) {
+            return str_replace($search, $replace, $subject);
+        }
+        return str_replace(array_keys($search), array_values($search), $subject);
+    }
+
+    /**
+     * @param float $value
+     * @param int $precision
+     * @param string $method
+     * @return int
+     * @throws UnexpectedValueException
+     */
+    public function round(float $value, int $precision = 0, $method = 'common'): int
+    {
+        switch (strtolower($method)) {
+            case 'common':
+                return round($value, $precision);
+            case 'floor':
+                return floor($value * pow(10, $precision)) / pow(10, $precision);
+            case 'ceil':
+                return ceil($value * pow(10, $precision)) / pow(10, $precision);
+        }
+
+        throw new UnexpectedValueException("Invalid rounding method: {$method}", 500);
+    }
+
+    public function mapConstant(string $constant, ?object $class = null)
+    {
+        if ($class !== null) {
+            $constant = get_class($class) . '::' . $constant;
+        }
+
+        return constant($constant);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws AccessDeniedException
+     * @throws Exception
+     * @throws FileSystemUnexpectedValueException
+     * @throws RuntimeException
+     */
+    public function getFile(string ...$path): File
+    {
+        $storage = new Storage\Disk($path);
+        return new File($storage, Constraint::STRICT);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws AccessDeniedException
+     * @throws Exception
+     * @throws FileSystemUnexpectedValueException
+     * @throws RuntimeException
+     */
+    public function getDirectory(string ...$path): Directory
+    {
+        $storage = new Storage\Disk($path);
+        return new Directory($storage, Constraint::STRICT);
     }
 }
