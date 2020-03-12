@@ -37,18 +37,18 @@ class Resolver
         $this->bindings = $bindings;
         $this->functions = $functions;
 
-        $tokenDelimiter = [];
+        // core delimiters:
+        $tokenDelimiter = [
+            new Delimiter('.', false),
+            new Delimiter('|', false),
+            new Delimiter(',', false),
+            new Delimiter(':', false),
+        ];
 
         // operator delimiters:
         foreach (array_keys(static::getOperators()) as $operator) {
-            $tokenDelimiter[] = new Delimiter($operator);
+            $tokenDelimiter[] = new Delimiter($operator, true);
         }
-
-        // core delimiters:
-        $tokenDelimiter[] = new Delimiter('.');
-        $tokenDelimiter[] = new Delimiter('|');
-        $tokenDelimiter[] = new Delimiter(',');
-        $tokenDelimiter[] = new Delimiter(':');
 
         $this->tokenizer = new Tokenizer($tokenDelimiter, [
             new Block('[', ']', true),
@@ -59,13 +59,18 @@ class Resolver
         ]);
     }
 
-    private static function getOperator(string $operator): ?callable
+    private static function getOperator(?string $operator): ?callable
     {
-        $operators = static::getOperators();
-        if (isset($operators[$operator])) {
-            return $operators[$operator];
+        if ($operator === null) {
+            return null;
         }
-        return null;
+
+        $operators = static::getOperators();
+        if (!isset($operators[$operator])) {
+            return null;
+        }
+
+        return $operators[$operator];
     }
 
     private static function getOperators(): array
@@ -239,6 +244,71 @@ class Resolver
      */
     private function resolveSymbols(array $symbols)
     {
+        // split symbols into contexts
+        $current = ['delimiter' => null, 'context' => []];
+        $results = [];
+        foreach ($symbols as $symbol) {
+
+            // stays in context
+            if (!$symbol->isContextSwitching()) {
+                $current['context'][] = $symbol;
+                continue;
+            }
+
+            // context-switch!
+            // resolve previous context first
+            $results[] = ['value' => $this->resolveContextSymbols($current['context'], false), 'delimiter' => $current['delimiter']];
+
+            // start new context
+            $current = ['delimiter' => $symbol->delimiter(), 'context' => [$symbol]];
+        }
+
+        // resolve remaining open context
+        $results[] = ['value' => $this->resolveContextSymbols($current['context'], true), 'delimiter' => $current['delimiter']];
+
+        $first = array_shift($results);
+        $value = $first['value'];
+
+        if (count($results) < 1) {
+            return $value;
+        }
+
+        foreach ($results as $current) {
+
+            /** @var Delimiter|null $rhsDelimiter */
+            $rhsDelimiter = $current['delimiter'];
+            $rhsValue = $current['value'];
+
+            if (null !== $operatorClosure = static::getOperator($rhsDelimiter)) {
+
+                // resolve operators
+                $value = $operatorClosure($value, $rhsValue);
+
+            } else {
+                throw new RuntimeException("Unsupported context-switching delimiter: {$rhsDelimiter}", 500);
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Expects list of Symbols/SymbolBlocks which belong to the same context,
+     * e.g. same part of an operator statement or belong to the same keypath iteration
+     * @param ResultSymbolBase[] $symbols
+     * @param bool $isLastContext
+     * @return mixed
+     * @throws RuntimeException
+     */
+    private function resolveContextSymbols(array $symbols, bool $isLastContext)
+    {
+        if (count($symbols) < 1) {
+            return null;
+        }
+
+        // the first symbol must always have a null-delimiter
+        $symbols[0] = $symbols[0]->setDelimiter(null);
+
         // float as special edge case since they contain a single . char
         // but must still be interpreted as a single symbol, e.g. 3.14
         if (SymbolHelper::isFloat($symbols)) {
@@ -255,7 +325,7 @@ class Resolver
         // resolve depth-first
         // respects different symbol delimiters like:
         //   [keypaths, function-calls, conditions, operations]
-        foreach ($symbols as $symbol) {
+        foreach ($symbols as $key => $symbol) {
             // resolve the current symbol
 
             /** @var Symbol[] $resolvedSymbol */
@@ -284,31 +354,26 @@ class Resolver
                         $keyPathFinder = new KeypathFinder($lastSymbol->value());
                     }
 
-                    if ($keyPathFinder->next($resolvedSymbol->value())) {
+                    if ($keyPathFinder->next(trim($resolvedSymbol->value()))) {
 
                         $value = $keyPathFinder->get();
 
                     } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
 
-                        $value = $resolvedSymbol->value();
+                        $value = trim($resolvedSymbol->value());
 
-                    } else if ($symbol !== $symbols[array_key_last($symbols)]) {
+                    } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
 
                         $value = null;
 
                     } else {
                         throw new RuntimeException(sprintf(
-                            "Unable to resolve variable path: %s. Unknown key: %s",
+                            "Unable to resolve variable path: %s. Unknown key: %s in path: %s",
                             new Result($symbols),
-                            $symbol
+                            $symbol,
+                            implode('.', $keyPathFinder->getPath())
                         ), 500);
                     }
-
-                } else if (null !== $symbol->delimiter() && null !== $operatorClosure = static::getOperator($symbol->delimiter())) {
-
-                    // resolve operators
-                    $keyPathFinder->reset();
-                    $value = $operatorClosure($value, $resolvedSymbol->value());
 
                 } else {
 
@@ -324,14 +389,14 @@ class Resolver
         return $value;
     }
 
+
     /**
      * @param ResultSymbol $symbol
      * @param $stateVar
      * @return Symbol[]
      * @throws RuntimeException
      */
-    private
-    function resolveSymbol(ResultSymbol $symbol, $stateVar): array
+    private function resolveSymbol(ResultSymbol $symbol, $stateVar): array
     {
         if ($symbol->delimiter() === null || !$symbol->delimiter()->is('|')) {
             return [new Symbol($symbol->asGuessedType(), false)];
@@ -352,8 +417,7 @@ class Resolver
      * @return Symbol[]
      * @throws RuntimeException
      */
-    private
-    function resolveSymbolBlock(ResultBlock $block, $stateVar): array
+    private function resolveSymbolBlock(ResultBlock $block, $stateVar): array
     {
         switch (true) {
 
@@ -405,8 +469,7 @@ class Resolver
      * @return string
      * @throws RuntimeException
      */
-    private
-    function resolveSymbolStringBlock(ResultBlock $block): string
+    private function resolveSymbolStringBlock(ResultBlock $block): string
     {
         $retVal = '';
         foreach ($block->symbols() as $symbol) {
@@ -424,8 +487,7 @@ class Resolver
      * @return mixed
      * @throws RuntimeException
      */
-    private
-    function resolveMethodCall(ResultBlock $block, $class)
+    private function resolveMethodCall(ResultBlock $block, $class)
     {
         if (!is_object($class)) {
             throw new RuntimeException(sprintf
@@ -449,8 +511,7 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private
-    function resolveParameterList(array $parameterSymbols): array
+    private function resolveParameterList(array $parameterSymbols): array
     {
         $parameters = [];
         $unresolvedSymbols = [];
@@ -477,8 +538,7 @@ class Resolver
      * @return mixed
      * @throws RuntimeException
      */
-    private
-    function resolveSymbolFunctionBlock(ResultBlock $block, bool $preprendValue, $value = null)
+    private function resolveSymbolFunctionBlock(ResultBlock $block, bool $preprendValue, $value = null)
     {
         $function = $this->getFunction($block->prefix());
         if ($function === null) {
@@ -498,8 +558,7 @@ class Resolver
         return $function->call($parameters);
     }
 
-    private
-    function getFunction(string $name): ?BaseFunction
+    private function getFunction(string $name): ?BaseFunction
     {
         if (isset($this->functions[$name])) {
             return $this->functions[$name];
@@ -519,8 +578,7 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private
-    function buildArrayFromBlockToken(ResultBlock $block): array
+    private function buildArrayFromBlockToken(ResultBlock $block): array
     {
         return $this->resolveParameterList($block->symbols());
     }
@@ -530,8 +588,7 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private
-    function buildAssocFromBlockToken(ResultBlock $block): array
+    private function buildAssocFromBlockToken(ResultBlock $block): array
     {
         $result = [];
         $key = null;

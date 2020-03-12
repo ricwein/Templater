@@ -194,6 +194,6 @@ class ResolverTest extends TestCase
         $this->assertSame("was nil", $resolver->resolve("non_value ?? 'was nil'"));
         $this->assertSame("success", $resolver->resolve("nested.test ?? 'was nil'"));
         $this->assertSame("was nil", $resolver->resolve("nested.unExisting ?? 'was nil'"));
-//        $this->assertSame("yay", $resolver->resolve("nested['lol'] ?? strings[0]"));
+        $this->assertSame("yay", $resolver->resolve("nested['lol'] ?? strings[0]"));
     }
 }
