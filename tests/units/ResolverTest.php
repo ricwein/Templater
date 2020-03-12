@@ -175,4 +175,25 @@ class ResolverTest extends TestCase
         $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));
         $this->assertSame('mismatches', $resolver->resolve("strings | first != strings | last ? 'mismatches'"));
     }
+
+    public function testOperators()
+    {
+        $bindings = [
+            'data' => [true, false],
+            'nested' => ['test' => 'success'],
+            'strings' => ['yay', 'no', 'another string'],
+            'non_value' => null,
+        ];
+
+        $functions = (new CoreFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
+
+        $this->assertSame(false, $resolver->resolve('true && false'));
+        $this->assertSame(true, $resolver->resolve('true || false'));
+
+        $this->assertSame("was nil", $resolver->resolve("non_value ?? 'was nil'"));
+        $this->assertSame("success", $resolver->resolve("nested.test ?? 'was nil'"));
+        $this->assertSame("was nil", $resolver->resolve("nested.unExisting ?? 'was nil'"));
+//        $this->assertSame("yay", $resolver->resolve("nested['lol'] ?? strings[0]"));
+    }
 }

@@ -37,16 +37,18 @@ class Resolver
         $this->bindings = $bindings;
         $this->functions = $functions;
 
-        $tokenDelimiter = [
-            new Delimiter('.'),
-            new Delimiter('|'),
-            new Delimiter(','),
-            new Delimiter(':'),
-        ];
+        $tokenDelimiter = [];
 
+        // operator delimiters:
         foreach (array_keys(static::getOperators()) as $operator) {
             $tokenDelimiter[] = new Delimiter($operator);
         }
+
+        // core delimiters:
+        $tokenDelimiter[] = new Delimiter('.');
+        $tokenDelimiter[] = new Delimiter('|');
+        $tokenDelimiter[] = new Delimiter(',');
+        $tokenDelimiter[] = new Delimiter(':');
 
         $this->tokenizer = new Tokenizer($tokenDelimiter, [
             new Block('[', ']', true),
@@ -55,6 +57,15 @@ class Resolver
             new Block('\'', null, false),
             new Block('"', null, false),
         ]);
+    }
+
+    private static function getOperator(string $operator): ?callable
+    {
+        $operators = static::getOperators();
+        if (isset($operators[$operator])) {
+            return $operators[$operator];
+        }
+        return null;
     }
 
     private static function getOperators(): array
@@ -133,7 +144,7 @@ class Resolver
             },
 
             '??' => function ($lhs, $rhs) {
-                return $lhs !== null ? $lhs : $rhs;
+                return isset($lhs) && $lhs !== null ? $lhs : $rhs;
             },
             ' and ' => function ($lhs, $rhs): bool {
                 return $lhs && $rhs;
@@ -274,21 +285,36 @@ class Resolver
                     }
 
                     if ($keyPathFinder->next($resolvedSymbol->value())) {
+
                         $value = $keyPathFinder->get();
+
                     } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
+
                         $value = $resolvedSymbol->value();
+
+                    } else if ($symbol !== $symbols[array_key_last($symbols)]) {
+
+                        $value = null;
+
                     } else {
                         throw new RuntimeException(sprintf(
-                            "Unable to resolve variable path %s. Unknown key: %s",
+                            "Unable to resolve variable path: %s. Unknown key: %s",
                             new Result($symbols),
                             $symbol
                         ), 500);
-
                     }
 
+                } else if (null !== $symbol->delimiter() && null !== $operatorClosure = static::getOperator($symbol->delimiter())) {
+
+                    // resolve operators
+                    $keyPathFinder->reset();
+                    $value = $operatorClosure($value, $resolvedSymbol->value());
+
                 } else {
+
                     $keyPathFinder->reset();
                     $value = $resolvedSymbol->value();
+
                 }
 
                 $lastSymbol = $resolvedSymbol;
@@ -304,7 +330,8 @@ class Resolver
      * @return Symbol[]
      * @throws RuntimeException
      */
-    private function resolveSymbol(ResultSymbol $symbol, $stateVar): array
+    private
+    function resolveSymbol(ResultSymbol $symbol, $stateVar): array
     {
         if ($symbol->delimiter() === null || !$symbol->delimiter()->is('|')) {
             return [new Symbol($symbol->asGuessedType(), false)];
@@ -313,7 +340,7 @@ class Resolver
         $functionName = trim($symbol->symbol());
         $function = $this->getFunction($functionName);
         if ($function === null) {
-            throw new RuntimeException("Call to unknown function: {$functionName}()", 500);
+            throw new RuntimeException("Call to unknown function: {$functionName}() in '{$symbol}'", 500);
         }
 
         return [new Symbol($function->call([$stateVar]), true)];
@@ -325,7 +352,8 @@ class Resolver
      * @return Symbol[]
      * @throws RuntimeException
      */
-    private function resolveSymbolBlock(ResultBlock $block, $stateVar): array
+    private
+    function resolveSymbolBlock(ResultBlock $block, $stateVar): array
     {
         switch (true) {
 
@@ -377,7 +405,8 @@ class Resolver
      * @return string
      * @throws RuntimeException
      */
-    private function resolveSymbolStringBlock(ResultBlock $block): string
+    private
+    function resolveSymbolStringBlock(ResultBlock $block): string
     {
         $retVal = '';
         foreach ($block->symbols() as $symbol) {
@@ -395,7 +424,8 @@ class Resolver
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveMethodCall(ResultBlock $block, $class)
+    private
+    function resolveMethodCall(ResultBlock $block, $class)
     {
         if (!is_object($class)) {
             throw new RuntimeException(sprintf
@@ -419,7 +449,8 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private function resolveParameterList(array $parameterSymbols): array
+    private
+    function resolveParameterList(array $parameterSymbols): array
     {
         $parameters = [];
         $unresolvedSymbols = [];
@@ -446,7 +477,8 @@ class Resolver
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveSymbolFunctionBlock(ResultBlock $block, bool $preprendValue, $value = null)
+    private
+    function resolveSymbolFunctionBlock(ResultBlock $block, bool $preprendValue, $value = null)
     {
         $function = $this->getFunction($block->prefix());
         if ($function === null) {
@@ -466,7 +498,8 @@ class Resolver
         return $function->call($parameters);
     }
 
-    private function getFunction(string $name): ?BaseFunction
+    private
+    function getFunction(string $name): ?BaseFunction
     {
         if (isset($this->functions[$name])) {
             return $this->functions[$name];
@@ -486,7 +519,8 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private function buildArrayFromBlockToken(ResultBlock $block): array
+    private
+    function buildArrayFromBlockToken(ResultBlock $block): array
     {
         return $this->resolveParameterList($block->symbols());
     }
@@ -496,7 +530,8 @@ class Resolver
      * @return array
      * @throws RuntimeException
      */
-    private function buildAssocFromBlockToken(ResultBlock $block): array
+    private
+    function buildAssocFromBlockToken(ResultBlock $block): array
     {
         $result = [];
         $key = null;
