@@ -325,7 +325,7 @@ class Resolver
         // resolve depth-first
         // respects different symbol delimiters like:
         //   [keypaths, function-calls, conditions, operations]
-        foreach ($symbols as $key => $symbol) {
+        foreach ($symbols as $symbol) {
             // resolve the current symbol
 
             /** @var Symbol[] $resolvedSymbol */
@@ -354,13 +354,13 @@ class Resolver
                         $keyPathFinder = new KeypathFinder($lastSymbol->value());
                     }
 
-                    if ($keyPathFinder->next(trim($resolvedSymbol->value()))) {
+                    if ($keyPathFinder->next($resolvedSymbol->value(true))) {
 
                         $value = $keyPathFinder->get();
 
                     } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
 
-                        $value = trim($resolvedSymbol->value());
+                        $value = $resolvedSymbol->value();
 
                     } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
 
@@ -386,6 +386,7 @@ class Resolver
             }
 
         }
+
         return $value;
     }
 

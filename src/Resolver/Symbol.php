@@ -19,7 +19,7 @@ class Symbol
     public const TYPE_ARRAY = 'array';
 
     public const ANY_SCALAR = ['string', 'float', 'int', 'bool'];
-    public const ANY_DEFINABLE = ['float', 'int', 'bool','object', 'array'];
+    public const ANY_DEFINABLE = ['float', 'int', 'bool', 'array'];
     public const ANY_ACCESSIBLE = ['object', 'array'];
     public const ANY_KEYPATH_PART = ['string', 'int'];
 
@@ -93,8 +93,12 @@ class Symbol
         }
     }
 
-    public function value()
+    public function value(bool $trimmed = false)
     {
+        if ($trimmed && $this->type === static::TYPE_STRING) {
+            return trim($this->value);
+        }
+
         return $this->value;
     }
 
