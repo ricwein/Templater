@@ -49,7 +49,7 @@ class ForLoop extends Processor
                 if (preg_match('/\((.+)\s*,\s*(.+)\)/', $loop[static::VARIABLE_AS], $matches) === 1) {
                     $replaces += [
                         $matches[1] => "'{$key}'",
-                        $matches[2] => "{$loop[static::VARIABLE_FROM]}[{$key}]",
+                        $matches[2] => "{$loop[static::VARIABLE_FROM]}['{$key}']",
                     ];
                 } else {
                     $replaces += [
