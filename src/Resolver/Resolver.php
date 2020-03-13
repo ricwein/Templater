@@ -3,6 +3,7 @@
 namespace ricwein\Templater\Resolver;
 
 use ricwein\Templater\Engine\BaseFunction;
+use ricwein\Templater\Engine\CoreOperators;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Tokenizer\Result\Result;
 use ricwein\Tokenizer\Result\ResultBlock;
@@ -42,7 +43,9 @@ class Resolver
             new Delimiter('.', false),
             new Delimiter('|', false),
             new Delimiter(',', false),
-            new Delimiter(':', false),
+
+            new Delimiter(':', true),
+            new Delimiter('?', true),
         ];
 
         // operator delimiters:
@@ -79,131 +82,9 @@ class Resolver
             return static::$operators;
         }
 
-        static::$operators = [
-            '!=' => function ($lhs, $rhs): bool {
-                return $lhs !== $rhs;
-            },
-            '<=>' => function ($lhs, $rhs): int {
-                return $lhs <=> $rhs;
-            },
-            '>=' => function ($lhs, $rhs): bool {
-                return $lhs >= $rhs;
-            },
-            '<=' => function ($lhs, $rhs): bool {
-                return $lhs <= $rhs;
-            },
-            '>' => function ($lhs, $rhs): bool {
-                return $lhs > $rhs;
-            },
-            '<' => function ($lhs, $rhs): bool {
-                return $lhs < $rhs;
-            },
-            '==' => function ($lhs, $rhs): bool {
-                return $lhs === $rhs;
-            },
-            ' b-or ' => function ($lhs, $rhs) {
-                return $lhs | $rhs;
-            },
-            ' b-and ' => function ($lhs, $rhs) {
-                return $lhs & $rhs;
-            },
-            ' in ' => function ($lhs, $rhs, string $operator): bool {
-                switch (true) {
-                    case is_array($rhs):
-                        return in_array($lhs, $rhs, true);
-                    case is_string($lhs) && is_string($rhs):
-                        return strpos($rhs, $lhs) !== false;
-                    default:
-                        throw static::datatypeException($operator, $lhs, $rhs);
-                }
-            },
-            ' not in ' => function ($lhs, $rhs, string $operator): bool {
-                switch (true) {
-                    case is_array($rhs):
-                        return !in_array($lhs, $rhs, true);
-                    case is_string($lhs) && is_string($rhs):
-                        return strpos($rhs, $lhs) === false;
-                    default:
-                        throw static::datatypeException($operator, $lhs, $rhs);
-                }
-            },
-            ' starts with ' => function ($lhs, $rhs, string $operator): bool {
-                switch (true) {
-                    case is_array($rhs):
-                        return $lhs === $rhs[array_key_first($rhs)];
-                    case is_string($lhs) && is_string($rhs):
-                        return strpos($lhs, $rhs) === 0;
-                    default:
-                        throw static::datatypeException($operator, $lhs, $rhs);
-                }
-            },
-            ' ends with ' => function ($lhs, $rhs, string $operator): bool {
-                switch (true) {
-                    case is_array($rhs):
-                        return $lhs === $rhs[array_key_last($rhs)];
-                    case is_string($lhs) && is_string($rhs):
-                        return strrpos($lhs, $rhs) === (strlen($lhs) - strlen($rhs));
-                    default:
-                        throw static::datatypeException($operator, $lhs, $rhs);
-                }
-            },
-
-            '??' => function ($lhs, $rhs) {
-                return isset($lhs) && $lhs !== null ? $lhs : $rhs;
-            },
-            ' and ' => function ($lhs, $rhs): bool {
-                return $lhs && $rhs;
-            },
-            '&&' => function ($lhs, $rhs): bool {
-                return $lhs && $rhs;
-            },
-            ' or ' => function ($lhs, $rhs): bool {
-                return $lhs || $rhs;
-            },
-            '||' => function ($lhs, $rhs): bool {
-                return $lhs || $rhs;
-            },
-            ' xor ' => function ($lhs, $rhs): bool {
-                return $lhs xor $rhs;
-            },
-
-            '~' => function (string $lhs, string $rhs): string {
-                return $lhs . $rhs;
-            },
-            '+' => function ($lhs, $rhs) {
-                return $lhs + $rhs;
-            },
-            '-' => function ($lhs, $rhs) {
-                return $lhs - $rhs;
-            },
-            '*' => function ($lhs, $rhs) {
-                return $lhs * $rhs;
-            },
-            '/' => function ($lhs, $rhs) {
-                return $lhs / $rhs;
-            },
-        ];
+        static::$operators = (new CoreOperators())->get();
 
         return static::$operators;
-    }
-
-    /**
-     * @param string $operator
-     * @param $lhs
-     * @param $rhs
-     * @return RuntimeException
-     */
-    private static function datatypeException(string $operator, $lhs, $rhs): RuntimeException
-    {
-        return new RuntimeException(
-            sprintf(
-                "Invalid datatypes for '%s' operator. Parameters are lhs: %s, lhs: %s ",
-                $operator,
-                is_object($lhs) ? sprintf('class(%s)', get_class($lhs)) : gettype($lhs),
-                is_object($rhs) ? sprintf('class(%s)', get_class($rhs)) : gettype($rhs),
-            ),
-            500
-        );
     }
 
     /**
@@ -281,14 +162,21 @@ class Resolver
             /** @var Symbol $rhsValue */
             $rhsValue = $current['value'];
 
-            if (null !== $operatorClosure = static::getOperator($rhsDelimiter)) {
+            if ($rhsDelimiter !== null && $rhsDelimiter->is('?')) {
+
+                $condition = $value->value();
+                die("and now?");
+
+
+            } else if (null !== $operator = static::getOperator($rhsDelimiter)) {
 
                 // resolve operators
-                $result = $operatorClosure($value->value(), $rhsValue->value());
-                $value = new Symbol($result, $rhsValue->interruptKeyPath());
+                $value = $operator($value, $rhsValue);
 
             } else {
+
                 throw new RuntimeException("Unsupported context-switching delimiter: {$rhsDelimiter}", 500);
+
             }
         }
 
@@ -296,8 +184,6 @@ class Resolver
     }
 
     /**
-     * <b>!!! Should only be called from within resolveSymbols() !!!</b>
-     *
      * Expects list of Symbols/SymbolBlocks which belong to the same context,
      * e.g. same part of an operator statement or belong to the same keypath iteration
      * @param ResultSymbolBase[] $symbols
@@ -308,7 +194,7 @@ class Resolver
     private function resolveContextSymbols(array $symbols, bool $isLastContext): Symbol
     {
         if (count($symbols) < 1) {
-            return null;
+            return new Symbol(null, Symbol::TYPE_NULL);
         }
 
         // the first symbol must always have a null-delimiter
@@ -615,7 +501,7 @@ class Resolver
                     throw new RuntimeException("Found unexpected delimiter '{$symbol->delimiter()}' in inline assoc definition: {$block}", 500);
                 }
 
-                $result[$key] = $this->resolveSymbols($unresolvedSymbols)->value();
+                $result[$key] = $this->resolveContextSymbols($unresolvedSymbols, false)->value();
                 $key = null;
                 $unresolvedSymbols = [];
             }
@@ -627,7 +513,7 @@ class Resolver
             throw new RuntimeException("Unexpected end of inline assoc definition: {$block}", 500);
         }
 
-        $result[$key] = $this->resolveSymbols($unresolvedSymbols)->value();
+        $result[$key] = $this->resolveContextSymbols($unresolvedSymbols, true)->value();
 
         return $result;
     }

@@ -85,24 +85,18 @@ class ResolverTest extends TestCase
     {
         $this->markTestSkipped();
 
-        $tests = [
-            "true ? 'yay'" => 'yay',
-            "true ? 'yay' : 'oh noe'" => 'yay',
-
-            "false ? 'yay'" => '',
-            "false ? 'yay' : 'oh noe'" => 'oh noe',
-
-            "true ? 'yay' : true ? 'oh no' : 'my bad'" => 'yay',
-            "true ? 'yay' : false ? 'oh no' : 'my bad'" => 'yay',
-            "false ? 'yay' : true ? 'oh no' : 'my bad'" => 'oh no',
-            "false ? 'yay' : false ? 'oh no' : 'my bad'" => 'my bad',
-        ];
-
         $resolver = new Resolver();
-        foreach ($tests as $input => $expection) {
-            $resolved = $resolver->resolve((string)$input);
-            $this->assertSame($expection, $resolved);
-        }
+
+        $this->assertSame('yay', $resolver->resolve("true ? 'yay'"));
+        $this->assertSame('yay', $resolver->resolve("true ? 'yay' : 'oh noe'"));
+
+        $this->assertSame('', $resolver->resolve("false ? 'yay'"));
+        $this->assertSame('oh noe', $resolver->resolve("false ? 'yay' : 'oh noe'"));
+
+        $this->assertSame('yay', $resolver->resolve("true ? 'yay' : true ? 'oh no' : 'my bad'"));
+        $this->assertSame('yay', $resolver->resolve("true ? 'yay' : false ? 'oh no' : 'my bad'"));
+        $this->assertSame('oh no', $resolver->resolve("false ? 'yay' : true ? 'oh no' : 'my bad'"));
+        $this->assertSame('my bad', $resolver->resolve("false ? 'yay' : false ? 'oh no' : 'my bad'"));
     }
 
     public function testConditionalBindingResolving()

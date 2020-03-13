@@ -18,10 +18,11 @@ class Symbol
     public const TYPE_OBJECT = 'object';
     public const TYPE_ARRAY = 'array';
 
-    public const ANY_SCALAR = ['string', 'float', 'int', 'bool'];
-    public const ANY_DEFINABLE = ['float', 'int', 'bool', 'array'];
-    public const ANY_ACCESSIBLE = ['object', 'array'];
-    public const ANY_KEYPATH_PART = ['string', 'int'];
+    public const ANY_SCALAR = [self::TYPE_STRING, self::TYPE_FLOAT, self::TYPE_INT, self::TYPE_BOOL];
+    public const ANY_DEFINABLE = [self::TYPE_FLOAT, self::TYPE_INT, self::TYPE_BOOL, self::TYPE_ARRAY];
+    public const ANY_ACCESSIBLE = [self::TYPE_OBJECT, self::TYPE_ARRAY];
+    public const ANY_KEYPATH_PART = [self::TYPE_STRING, self::TYPE_INT];
+    public const ANY_NUMERIC = [self::TYPE_INT, self::TYPE_FLOAT];
 
     /**
      * @var mixed
@@ -29,7 +30,7 @@ class Symbol
     private $value;
 
     /**
-     * @var int
+     * @var string
      */
     private string $type;
 
