@@ -48,7 +48,7 @@ class ForLoop extends Processor
                 // what do we want to pass into the loop? key and value or only value
                 if (preg_match('/\((.+)\s*,\s*(.+)\)/', $loop[static::VARIABLE_AS], $matches) === 1) {
                     $replaces += [
-                        $matches[1] => "{$loop[static::VARIABLE_FROM]}[{$key}].key()",
+                        $matches[1] => "'{$key}'",
                         $matches[2] => "{$loop[static::VARIABLE_FROM]}[{$key}]",
                     ];
                 } else {
