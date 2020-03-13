@@ -43,7 +43,9 @@ class Bindings extends Processor
             }
 
             // check for return type
-            if (is_scalar($current)) {
+            if ($current === null) {
+                return '';
+            } elseif (is_scalar($current)) {
                 return $current;
             } elseif (is_object($current) && method_exists($current, '__toString')) {
                 return (string)$current;
