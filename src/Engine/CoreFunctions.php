@@ -11,6 +11,7 @@ use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\FileSystem\Helper\Constraint;
+use ricwein\FileSystem\Helper\PathFinder;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
@@ -64,10 +65,10 @@ class CoreFunctions
             'empty' => [$this, 'empty'],
             'format' => 'sprintf',
             'date' => [$this, 'date'],
-            'file' => [$this, 'getFile'],
-            'directory' => [$this, 'getDirectory'],
             'url_encode' => 'rawurlencode',
             'url_decode' => 'rawurldecode',
+            'file' => [$this, 'getFile'],
+            'directory' => [$this, 'getDirectory'],
         ];
 
         $functions = [
@@ -256,7 +257,11 @@ class CoreFunctions
      */
     public function getFile(string ...$path): File
     {
-        $storage = new Storage\Disk($path);
+        $storage = PathFinder::try([
+            new Storage\Disk(...$path),
+            new Storage\Disk\Current(...$path),
+        ]);
+
         return new File($storage, Constraint::STRICT);
     }
 

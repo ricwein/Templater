@@ -165,6 +165,9 @@ class ResolverTest extends TestCase
 
         $this->assertSame('Test succeeded', $resolver->resolve("'Test failed' | replace('failed', 'succeeded')"));
         $this->assertSame('Test succeeded', $resolver->resolve("'%this% %status%' | replace({'%this%': 'Test', '%status%': 'succeeded'})"));
+
+        $filepath = __FILE__;
+        $this->assertSame(file_get_contents($filepath), $resolver->resolve("file('{$filepath}').read()"));
         return;
 
         $this->assertSame('yay', $resolver->resolve("data | first ? 'yay'"));
@@ -196,5 +199,21 @@ class ResolverTest extends TestCase
         $this->assertSame("was nil", $resolver->resolve("nested.unExisting ?? 'was nil'"));
         $this->assertSame("yay", $resolver->resolve("nested['unExisting'] ?? strings[0]"));
         $this->assertSame("no", $resolver->resolve("nested['unExisting'] ?? strings.1"));
+
+        $this->assertSame("success no", $resolver->resolve("nested['test'] ~ ' ' ~ strings.1"));
+    }
+
+    public function testBracketingResolution()
+    {
+        $bindings = [
+            'nested' => ['test' => 'success'],
+            'strings' => ['yay', 'test'],
+        ];
+
+        $functions = (new CoreFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
+
+        $this->assertSame("was nil", $resolver->resolve("(nested.unExisting ?? 'was nil') ?? 'doh'"));
+        $this->assertSame("success", $resolver->resolve("nested.(strings.1)"));
     }
 }
