@@ -83,26 +83,23 @@ class ResolverTest extends TestCase
 
     public function testConditionResolving()
     {
-        $this->markTestSkipped();
-
         $resolver = new Resolver();
 
         $this->assertSame('yay', $resolver->resolve("true ? 'yay'"));
         $this->assertSame('yay', $resolver->resolve("true ? 'yay' : 'oh noe'"));
 
-        $this->assertSame('', $resolver->resolve("false ? 'yay'"));
+        $this->assertSame(null, $resolver->resolve("false ? 'yay'"));
         $this->assertSame('oh noe', $resolver->resolve("false ? 'yay' : 'oh noe'"));
 
         $this->assertSame('yay', $resolver->resolve("true ? 'yay' : true ? 'oh no' : 'my bad'"));
         $this->assertSame('yay', $resolver->resolve("true ? 'yay' : false ? 'oh no' : 'my bad'"));
-        $this->assertSame('oh no', $resolver->resolve("false ? 'yay' : true ? 'oh no' : 'my bad'"));
+        $this->assertSame('oh no', $resolver->resolve("false ? 'yay' : (true ? 'oh no' : 'my bad')"));
         $this->assertSame('my bad', $resolver->resolve("false ? 'yay' : false ? 'oh no' : 'my bad'"));
+        //$this->assertSame('oh no', $resolver->resolve("false ? 'yay' : true ? 'oh no' : 'my bad'"));
     }
 
     public function testConditionalBindingResolving()
     {
-        $this->markTestSkipped();
-
         $bindings = [
             'data' => [true, false],
             'strings' => ['yay', 'no', 'another string'],

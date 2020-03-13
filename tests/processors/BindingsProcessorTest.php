@@ -9,7 +9,6 @@ class BindingsProcessorTest extends TestCase
 {
     public function testSimpleBindings()
     {
-        $this->markTestSkipped();
         $tests = [
             "Test1: {{ 'success' }} done" => "Test1: success done",
             "Test2: {{ true }}" => "Test2: 1"

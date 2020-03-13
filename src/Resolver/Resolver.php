@@ -146,13 +146,28 @@ class Resolver
         // resolve remaining open context
         $results[] = ['value' => $this->resolveContextSymbols($current['context'], true), 'delimiter' => $current['delimiter']];
 
+        return $this->resolveContextResults($results);
+    }
+
+    private function resolveContextResults(array $results): Symbol
+    {
         $first = array_shift($results);
+
         /** @var Symbol $value */
         $value = $first['value'];
 
         if (count($results) < 1) {
             return $value;
         }
+
+        /** @var Symbol|null $condition */
+        $condition = null;
+
+        /** @var array $ifBranch */
+        $ifBranch = [];
+
+        /** @var array $elseBranch */
+        $elseBranch = [];
 
         foreach ($results as $current) {
 
@@ -162,11 +177,20 @@ class Resolver
             /** @var Symbol $rhsValue */
             $rhsValue = $current['value'];
 
+            if (count($ifBranch) > 0) {
+                if ($rhsDelimiter->is(':') || count($elseBranch) > 0) {
+                    $elseBranch[] = $current;
+                } else {
+                    $ifBranch[] = $current;
+                }
+                continue;
+            }
+
             if ($rhsDelimiter !== null && $rhsDelimiter->is('?')) {
 
-                $condition = $value->value();
-                die("and now?");
-
+                // Split remaining results into branches and resolve them
+                $condition = $value;
+                $ifBranch[] = $current;
 
             } else if (null !== $operator = static::getOperator($rhsDelimiter)) {
 
@@ -180,7 +204,19 @@ class Resolver
             }
         }
 
-        return $value;
+        if (count($ifBranch) <= 0) {
+            return $value;
+        }
+
+        if ($condition->value()) {
+            return $this->resolveContextResults($ifBranch);
+        }
+
+        if (count($elseBranch) > 0) {
+            return $this->resolveContextResults($elseBranch);
+        }
+
+        return new Symbol(null, false, Symbol::TYPE_NULL);
     }
 
     /**
