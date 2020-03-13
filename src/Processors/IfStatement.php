@@ -43,7 +43,8 @@ class IfStatement extends Processor
 
                     try {
                         // check if the required condition is satisfied
-                        if ($resolver->resolveCondition($branch[static::CONDITION])) {
+                        $conditionSatisfied = $resolver->resolve($branch[static::CONDITION]);
+                        if ($conditionSatisfied) {
                             $this->content = str_replace($stmt[static::ORIGIN], $branch[static::CONTENT], $this->content);
                             continue 2;
                         }
