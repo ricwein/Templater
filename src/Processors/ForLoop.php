@@ -44,16 +44,17 @@ class ForLoop extends Processor
             $loopContent = [];
             foreach (array_keys($binding) as $key) {
                 $replaces = [];
+                $keyName = is_numeric($key) ? $key : "'{$key}'";
 
                 // what do we want to pass into the loop? key and value or only value
                 if (preg_match('/\((.+)\s*,\s*(.+)\)/', $loop[static::VARIABLE_AS], $matches) === 1) {
                     $replaces += [
-                        $matches[1] => "'{$key}'",
-                        $matches[2] => "{$loop[static::VARIABLE_FROM]}['{$key}']",
+                        $matches[1] => "{$keyName}",
+                        $matches[2] => "{$loop[static::VARIABLE_FROM]}[{$keyName}]",
                     ];
                 } else {
                     $replaces += [
-                        $loop[static::VARIABLE_AS] => "{$loop[static::VARIABLE_FROM]}[{$key}]",
+                        $loop[static::VARIABLE_AS] => "{$loop[static::VARIABLE_FROM]}[{$keyName}]",
                     ];
                 }
 

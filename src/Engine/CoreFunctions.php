@@ -180,7 +180,7 @@ class CoreFunctions
      * @inheritDoc
      * @throws UnexpectedValueException
      */
-    public function date($time, string $format, ?string $modifier): string
+    public function date($time, string $format, ?string $modifier = null): string
     {
         switch (true) {
 
