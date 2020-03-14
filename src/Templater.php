@@ -124,7 +124,7 @@ class Templater
             $content = trim($content);
             return $content;
         } catch (Exception $exception) {
-            throw new TemplatingException("Error rendering Template: {$templateFile->path()->filepath}", 500, $exception);
+            throw new TemplatingException("Error rendering Template: {$templateFile->path()->filepath}", $exception->getCode() > 0 ? $exception->getCode() : 500, $exception);
         }
     }
 

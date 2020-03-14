@@ -70,12 +70,8 @@ class Includes extends RecursiveProcessor
             $fileContent = $includeFile->read();
             $fileDir = $includeFile->directory(Constraint::IN_OPENBASEDIR);
 
-            try {
-                $blockProcessor = (new BlockExtensions($fileContent, $this->config, $baseDir))->process($bindings, $functions, $fileDir);
-                $fileContent = $blockProcessor->getResult();
-            } catch (Exception $exception) {
-                throw new TemplatingException("Error rendering Template: {$includeFile->path()->filepath}", 500, $exception);
-            }
+            $blockProcessor = (new BlockExtensions($fileContent, $this->config, $baseDir))->process($bindings, $functions, $fileDir);
+            $fileContent = $blockProcessor->getResult();
 
             // depth - 2 since we already have the original + current depth
             if ($currentDepth > static::MAX_DEPTH) {
