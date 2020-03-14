@@ -190,9 +190,17 @@ class CoreFunctions
                 }
                 return date($format);
 
-            case is_string($time):
-            case is_int($time):
+            case is_string($time) && $modifier !== null:
                 return date($format, strtotime(trim("{$time} {$modifier}")));
+
+            case is_string($time) && $modifier === null:
+                return date($format, strtotime($time));
+
+            case is_int($time) && $modifier !== null:
+                return date($format, strtotime("{$modifier}", $time));
+
+            case is_int($time) && $modifier === null:
+                return date($format, $time);
 
         }
 
