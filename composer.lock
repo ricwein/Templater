@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f55d3058a69fdac24a2bafaecc00fb8",
+    "content-hash": "83bd4d087142ceb2b5e93902b09a01f0",
     "packages": [
         {
             "name": "matthiasmullie/minify",
@@ -359,16 +359,16 @@
         },
         {
             "name": "ricwein/tokenizer",
-            "version": "dev-master",
+            "version": "1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ricwein/Tokenizer.git",
-                "reference": "2a8ccb064415f3c098b4cf136f0c18e0fe99b806"
+                "reference": "b1c39e5f132b0cb59ec70f35eab12cf9dac8970f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/2a8ccb064415f3c098b4cf136f0c18e0fe99b806",
-                "reference": "2a8ccb064415f3c098b4cf136f0c18e0fe99b806",
+                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/b1c39e5f132b0cb59ec70f35eab12cf9dac8970f",
+                "reference": "b1c39e5f132b0cb59ec70f35eab12cf9dac8970f",
                 "shasum": ""
             },
             "require": {
@@ -395,7 +395,7 @@
                 }
             ],
             "description": "configurable string tokenizer",
-            "time": "2020-03-12T20:31:32+00:00"
+            "time": "2020-03-13T10:33:40+00:00"
         },
         {
             "name": "scssphp/scssphp",
@@ -2489,9 +2489,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "ricwein/tokenizer": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

@@ -1,6 +1,6 @@
 {
   "name": "ricwein/templater",
-  "description": "simple regex based twig alike templating engine",
+  "description": "simple twig alike templating engine",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -14,7 +14,7 @@
     "matthiasmullie/minify": "^1.3",
     "phpfastcache/phpfastcache": "^7.1",
     "ricwein/filesystem": "^2.1",
-    "ricwein/tokenizer": "dev-master",
+    "ricwein/tokenizer": "^1.0",
     "scssphp/scssphp": "^1.0"
   },
   "require-dev": {
