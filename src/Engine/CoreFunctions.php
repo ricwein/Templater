@@ -32,23 +32,22 @@ class CoreFunctions
     public function get(): array
     {
         $exposeFunctions = [
+            'dump' => [$this, 'dump'],
+            'constant' => [$this, 'mapConstant'],
+
             'abs' => 'abs',
             'round' => [$this, 'round'],
-            'join' => [$this, 'join'],
-            'split' => [$this, 'split'],
             'range' => [$this, 'split'],
-            'dump' => [$this, 'dump'],
-            'lower' => 'strtolower',
-            'upper' => 'strtoupper',
-            'title' => [$this, 'strtotitle'],
-            'capitalize' => [$this, 'capitalize'],
-            'trim' => 'trim',
-            'nl2br' => 'nl2br',
-            'striptags' => 'strip_tags',
-            'json_encode' => 'json_encode',
-            'json_decode' => 'json_decode',
-            'constant' => [$this, 'mapConstant'],
-            'replace' => [$this, 'replace'],
+            'max' => 'max',
+            'min' => 'min',
+
+            'even' => [$this, 'isEven'],
+            'odd' => [$this, 'isOdd'],
+            'defined' => [$this, 'isDefined'],
+            'undefined' => [$this, 'isUndefined'],
+            'empty' => [$this, 'isEmpty'],
+            'iterable' => [$this, 'isIterable'],
+
             'count' => 'count',
             'length' => [$this, 'length'],
             'sum' => 'array_sum',
@@ -62,11 +61,27 @@ class CoreFunctions
             'flat' => [$this, 'flat'],
             'first' => [$this, 'first'],
             'last' => [$this, 'last'],
-            'empty' => [$this, 'empty'],
-            'format' => 'sprintf',
-            'date' => [$this, 'date'],
+
+            'join' => [$this, 'join'],
+            'split' => [$this, 'split'],
+
+            'lower' => 'strtolower',
+            'upper' => 'strtoupper',
+            'title' => [$this, 'strtotitle'],
+            'capitalize' => [$this, 'capitalize'],
+            'trim' => 'trim',
+            'nl2br' => 'nl2br',
+            'striptags' => 'strip_tags',
+            'replace' => [$this, 'replace'],
+
+            'json_encode' => 'json_encode',
+            'json_decode' => 'json_decode',
             'url_encode' => 'rawurlencode',
             'url_decode' => 'rawurldecode',
+
+            'format' => 'sprintf',
+            'date' => [$this, 'date'],
+
             'file' => [$this, 'getFile'],
             'directory' => [$this, 'getDirectory'],
         ];
@@ -161,7 +176,7 @@ class CoreFunctions
         return $array[array_key_last($array)];
     }
 
-    public function empty($var): bool
+    public function isEmpty($var): bool
     {
         return empty($var);
     }
@@ -284,5 +299,30 @@ class CoreFunctions
     {
         $storage = new Storage\Disk($path);
         return new Directory($storage, Constraint::STRICT);
+    }
+
+    public function isEven($number): bool
+    {
+        return $number % 2 === 0;
+    }
+
+    public function isOdd($number): bool
+    {
+        return !$this->isEven($number);
+    }
+
+    public function isDefined($value): bool
+    {
+        return isset($value) && $value !== null;
+    }
+
+    public function isUndefined($value): bool
+    {
+        return !$this->isDefined($value);
+    }
+
+    public function isIterable($value): bool
+    {
+        return is_iterable($value);
     }
 }

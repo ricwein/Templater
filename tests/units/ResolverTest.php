@@ -191,6 +191,29 @@ class ResolverTest extends TestCase
         $this->assertSame("yay", $resolver->resolve("nested['unExisting'] ?? strings[0]"));
         $this->assertSame("no", $resolver->resolve("nested['unExisting'] ?? strings.1"));
 
+        $this->assertSame(true, $resolver->resolve("'1.2.3' matches '/.*/'"));
+        $this->assertSame(false, $resolver->resolve("'1.2.3'  matches '/^\\d+$/'"));
+        $this->assertSame(true, $resolver->resolve("'10'  matches '/^\\d+$/'"));
+        $this->assertSame(true, $resolver->resolve("10  matches '/^\\d+$/'"));
+
+        // TODO: change behavior of Resolver to allow single-parameters functions like 'defined()' to
+        // TODO: be called after a 'is' operator, implicit passing the lhs into the rhs functions, e.g.:
+//        $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
+
+        $this->assertSame(true, $resolver->resolve("unknownvar is 'undefined'"));
+        $this->assertSame(false, $resolver->resolve("unknownvar is not 'undefined'"));
+        $this->assertSame(false, $resolver->resolve("unknownvar is 'defined'"));
+        $this->assertSame(true, $resolver->resolve("unknownvar is not 'defined'"));
+        $this->assertSame(true, $resolver->resolve("10.1 is 'numeric'"));
+        $this->assertSame(true, $resolver->resolve("10.1 is 'float'"));
+        $this->assertSame(false, $resolver->resolve("10.1 is 'int'"));
+        $this->assertSame(true, $resolver->resolve("10.1 is not 'int'"));
+        $this->assertSame(true, $resolver->resolve("non_value is 'null'"));
+        $this->assertSame(true, $resolver->resolve("strings | first() is 'string'"));
+
+        $this->assertSame(true, $resolver->resolve("2 in (1...10) "));
+        $this->assertSame(true, $resolver->resolve("11 not in (1...10) "));
+
         $this->assertSame("success no", $resolver->resolve("nested['test'] ~ ' ' ~ strings.1"));
     }
 

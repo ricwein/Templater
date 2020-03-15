@@ -27,26 +27,33 @@ class CoreOperators
 
             '??' => [$this, 'nullCoalescing'],
 
-            ' b-or ' => [$this, 'binaryOr'],
-            ' b-and ' => [$this, 'binaryAnd'],
-
             ' in ' => [$this, 'in'],
             ' not in ' => [$this, 'notIn'],
             ' starts with ' => [$this, 'startsWith'],
             ' ends with ' => [$this, 'endsWith'],
+            ' matches ' => [$this, 'pregMatch'],
+            ' is ' => [$this, 'is'],
+            ' is not ' => [$this, 'isNot'],
 
+            ' b-or ' => [$this, 'binaryOr'],
+            ' b-xor ' => [$this, 'xor'],
+            ' b-and ' => [$this, 'binaryAnd'],
             ' and ' => [$this, 'and'],
             '&&' => [$this, 'and'],
             ' or ' => [$this, 'or'],
             '||' => [$this, 'or'],
             ' xor ' => [$this, 'xor'],
 
+            '..' => [$this, 'range'],
+            '...' => [$this, 'range'],
             '~' => [$this, 'concat'],
 
             '+' => [$this, 'plus'],
             '-' => [$this, 'minus'],
             '*' => [$this, 'multiply'],
             '/' => [$this, 'divide'],
+            '%' => [$this, 'mod'],
+            '**' => [$this, 'pow'],
 
         ];
     }
@@ -185,17 +192,8 @@ class CoreOperators
      */
     public function notIn(Symbol $lhs, Symbol $rhs): Symbol
     {
-        switch (true) {
-
-            case $rhs->is(Symbol::TYPE_ARRAY):
-                return new Symbol(!in_array($lhs->value(), $rhs->value(), true), false, Symbol::TYPE_BOOL);
-
-            case $lhs->is(Symbol::TYPE_STRING) && $rhs->is(Symbol::TYPE_STRING):
-                return new Symbol(strpos($lhs->value(), $rhs->value()) === false, false, Symbol::TYPE_BOOL);
-
-            default:
-                throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
+        $in = $this->in($lhs, $rhs);
+        return new Symbol(!$in->value(), $in->interruptKeyPath(), $in->type());
     }
 
     /**
@@ -242,6 +240,65 @@ class CoreOperators
      * @inheritDoc
      * @throws RuntimeException
      */
+    public function pregMatch(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        if (!$rhs->is(Symbol::TYPE_STRING)) {
+            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
+        }
+
+        return new Symbol(
+            preg_match($rhs->value(), $lhs->value()) === 1,
+            false,
+            Symbol::TYPE_BOOL
+        );
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function is(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        $checkFor = $rhs->value(true);
+        if (is_string($checkFor)) {
+            $checkFor = strtolower($checkFor);
+        }
+
+        switch ($checkFor) {
+
+            case 'undefined':
+            case 'null':
+            case null:
+                return new Symbol($lhs->is(Symbol::TYPE_NULL), false, Symbol::TYPE_BOOL);
+
+            case 'defined':
+                return new Symbol(!$lhs->is(Symbol::TYPE_NULL), false, Symbol::TYPE_BOOL);
+
+            case 'numeric':
+                return new Symbol($lhs->is(Symbol::ANY_NUMERIC), false, Symbol::TYPE_BOOL);
+
+            case 'scalar':
+                return new Symbol($lhs->is(Symbol::ANY_SCALAR), false, Symbol::TYPE_BOOL);
+
+            default:
+                return new Symbol($lhs->is($checkFor), false, Symbol::TYPE_BOOL);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function isNot(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        $is = $this->is($lhs, $rhs);
+        return new Symbol(!$is->value(), $is->interruptKeyPath(), $is->type());
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
     public function and(Symbol $lhs, Symbol $rhs): Symbol
     {
         if (!$lhs->is(Symbol::TYPE_BOOL) || !$rhs->is(Symbol::TYPE_BOOL)) {
@@ -275,6 +332,21 @@ class CoreOperators
         }
 
         return new Symbol($lhs->value() xor $rhs->value(), false, Symbol::TYPE_BOOL);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function range(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        if (
+            (!$lhs->is(Symbol::ANY_NUMERIC) && $lhs->is(Symbol::TYPE_STRING))
+            || (!$rhs->is(Symbol::ANY_NUMERIC) && $rhs->is(Symbol::TYPE_STRING))
+        ) {
+            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
+        }
+        return new Symbol(range($lhs->value(), $rhs->value()), false, Symbol::TYPE_ARRAY);
     }
 
     /**
@@ -337,5 +409,32 @@ class CoreOperators
         }
 
         return new Symbol($lhs->value() / $rhs->value(), false);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function mod(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
+        }
+
+        return new Symbol($lhs->value() % $rhs->value(), false);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public
+    function pow(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
+        }
+
+        return new Symbol($lhs->value() ** $rhs->value(), false);
     }
 }
