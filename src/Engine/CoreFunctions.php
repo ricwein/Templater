@@ -2,6 +2,7 @@
 
 namespace ricwein\Templater\Engine;
 
+use Countable;
 use RecursiveArrayIterator;
 use RecursiveIteratorIterator;
 use ricwein\FileSystem\Directory;
@@ -15,6 +16,7 @@ use ricwein\FileSystem\Helper\PathFinder;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
+use Traversable;
 
 class CoreFunctions
 {
@@ -64,6 +66,7 @@ class CoreFunctions
 
             'join' => [$this, 'join'],
             'split' => [$this, 'split'],
+            'slice' => [$this, 'slice'],
 
             'lower' => 'strtolower',
             'upper' => 'strtoupper',
@@ -113,6 +116,23 @@ class CoreFunctions
         return str_split($string);
     }
 
+    /**
+     * @inheritDoc
+     * @param string|array $input
+     * @return string|array
+     * @throws UnexpectedValueException
+     */
+    public function slice($input, int $start, ?int $length = null, bool $preserveKeys = false)
+    {
+        if (is_array($input)) {
+            return array_slice($input, $start, $length, $preserveKeys);
+        } elseif (is_string($input)) {
+            return mb_substr($input, $start, $length);
+        }
+
+        throw new UnexpectedValueException(sprintf("Invalid Datatype for slice() input: %s", gettype($input)), 500);
+    }
+
     public function escape(string $string): string
     {
         return htmlspecialchars($string, ENT_QUOTES | ENT_SUBSTITUTE);
@@ -125,7 +145,7 @@ class CoreFunctions
 
     public function length($variable): int
     {
-        if (is_array($variable) || (is_object($variable) && $variable instanceof \Countable)) {
+        if (is_array($variable) || (is_object($variable) && $variable instanceof Countable)) {
             return count($variable);
         }
 
@@ -133,7 +153,7 @@ class CoreFunctions
             return strlen((string)$variable);
         }
 
-        if (is_object($variable) && $variable instanceof \Traversable) {
+        if (is_object($variable) && $variable instanceof Traversable) {
             return iterator_count($variable);
         }
 
