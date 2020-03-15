@@ -446,7 +446,11 @@ class Resolver
         $unresolvedSymbols = [];
         foreach ($parameterSymbols as $key => $symbol) {
             if ($symbol->delimiter() !== null && $symbol->delimiter()->is(',')) {
-                $parameters[] = $this->resolveSymbols($unresolvedSymbols)->value();
+                $param = $this->resolveSymbols($unresolvedSymbols)->value();
+                if (is_string($param)) {
+                    $param = stripslashes($param);
+                }
+                $parameters[] = $param;
                 $unresolvedSymbols = [];
             }
 
@@ -454,7 +458,11 @@ class Resolver
         }
 
         if (!empty($unresolvedSymbols)) {
-            $parameters[] = $this->resolveSymbols($unresolvedSymbols)->value();
+            $param = $this->resolveSymbols($unresolvedSymbols)->value();
+            if (is_string($param)) {
+                $param = stripslashes($param);
+            }
+            $parameters[] = $param;
         }
 
         return $parameters;

@@ -78,6 +78,7 @@ class ResolverTest extends TestCase
         $this->assertSame('php', $resolver->resolve('file.path().extension'));
         $this->assertSame('text/x-php', $resolver->resolve('file.getType()'));
         $this->assertSame('text/x-php', $resolver->resolve('file.getType(false)'));
+        $this->assertSame(hash_file('sha256', __FILE__), $resolver->resolve("file.getHash(constant('\\ricwein\FileSystem\Enum\Hash::CONTENT'))"));
         $this->assertSame('text/x-php; charset=us-ascii', $resolver->resolve('file.getType(true)'));
     }
 
