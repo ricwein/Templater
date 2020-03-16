@@ -5,7 +5,6 @@
 
 namespace ricwein\Templater\Processors;
 
-use ReflectionException;
 use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Resolver\Resolver;
 use ricwein\Templater\Exceptions\RuntimeException;
@@ -16,12 +15,13 @@ use ricwein\Templater\Exceptions\UnexpectedValueException;
  */
 class ForLoop extends Processor
 {
-    const ORIGIN = 'origin';
-    const CONTENT = 'content';
-    const CONTAINS_NESTED_LEVEL = 'nesting';
-    const OFFSET = 'offset';
-    const VARIABLE_FROM = 'var_from';
-    const VARIABLE_AS = 'var_as';
+    private const ORIGIN = 'origin';
+    private const CONTENT = 'content';
+    private const CONTAINS_NESTED_LEVEL = 'nesting';
+    private const OFFSET = 'offset';
+    private const VARIABLE_FROM = 'var_from';
+    private const VARIABLE_AS = 'var_as';
+    private const LOOP_CONDITION = 'condition';
 
     /**
      * @param array $bindings
@@ -29,7 +29,6 @@ class ForLoop extends Processor
      * @return ForLoop
      * @throws RuntimeException
      * @throws UnexpectedValueException
-     * @throws ReflectionException
      */
     public function process(array $bindings = [], array $functions = []): self
     {
@@ -59,7 +58,7 @@ class ForLoop extends Processor
                 }
 
                 // replace unrolled variables in loop-bodies
-                $loopContent[] = preg_replace_callback('/{[{%]\s*(.+)?\s*[}%]}/Us', function (array $match) use ($replaces): string {
+                $currentLoop = preg_replace_callback('/{[{%]\s*(.+)?\s*[}%]}/Us', function (array $match) use ($replaces, $loop): string {
                     $input = $match[0];
 
                     foreach ($replaces as $replace => $with) {
@@ -69,9 +68,24 @@ class ForLoop extends Processor
                             return str_replace($replace, $with, $replaceMatch[0]);
                         }, $input);
                     }
-
                     return $input;
                 }, $loop[static::CONTENT]);
+
+                if ($loop[static::LOOP_CONDITION] !== null) {
+                    $condition = $loop[static::LOOP_CONDITION];
+                    foreach ($replaces as $replace => $with) {
+
+                        // only replace full word matches but not partial (.pages. with .page.1s.)
+                        $condition = preg_replace_callback("/(?:\.|\s+|{{|{%|\[|\(|){$replace}(?:\.|\s+|}}|%}|]\))/", function (array $replaceMatch) use ($replace, $with): string {
+                            return str_replace($replace, $with, $replaceMatch[0]);
+                        }, $condition);
+                    }
+
+                    $loopContent[] = "{% if {$condition} %}\n{$currentLoop}\n{% endif %}";
+                } else {
+                    $loopContent[] = $currentLoop;
+                }
+
             }
             $unrolledLoop = implode(PHP_EOL, $loopContent);
 
@@ -92,12 +106,12 @@ class ForLoop extends Processor
         $closeLoopMatches = [];
 
         if (
-            false === preg_match_all('/{%\s*for\s+(.+)\s+in\s+(.+)\s*%}/U', $content, $openLoopMatches, PREG_OFFSET_CAPTURE)
+            false === preg_match_all('/{%\s*for\s+(.+)\s+in\s+(.+)(\s*(if|where)(.*))?\s*%}/Us', $content, $openLoopMatches, PREG_OFFSET_CAPTURE)
             ||
             false === preg_match_all('/{%\s*endfor\s*%}/U', $content, $closeLoopMatches, PREG_OFFSET_CAPTURE)
         ) {
             return null;
-        } elseif (count($openLoopMatches) !== 3 || count($closeLoopMatches) !== 1) {
+        } elseif ((count($openLoopMatches) < 3) || count($closeLoopMatches) !== 1) {
             return null;
         } elseif (count($openLoopMatches[0]) !== count($closeLoopMatches[0])) {
             throw new UnexpectedValueException("unmatching 'for' and 'endfor' counts");
@@ -112,8 +126,10 @@ class ForLoop extends Processor
                 'offset' => $openLoopMatches[0][$key][1],
                 'variable_as' => trim($openLoopMatches[1][$key][0]),
                 'variable_from' => trim($openLoopMatches[2][$key][0]),
-                'content' => $openLoopMatches[0][$key][0]
+                'condition' => isset($openLoopMatches[3][$key][0]) ? $openLoopMatches[5][$key][0] : null,
+                'content' => $openLoopMatches[0][$key][0],
             ];
+
             $loopList[] = [
                 'type' => 'close',
                 'offset' => $closeLoopMatches[0][$key][1],
@@ -187,6 +203,7 @@ class ForLoop extends Processor
                     static::OFFSET => $loopOriginStart,
                     static::VARIABLE_FROM => $lastOpenLoop['variable_from'],
                     static::VARIABLE_AS => $lastOpenLoop['variable_as'],
+                    static::LOOP_CONDITION => $lastOpenLoop['condition'],
                 ];
 
             } else {

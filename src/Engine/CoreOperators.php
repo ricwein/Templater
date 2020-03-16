@@ -56,6 +56,7 @@ class CoreOperators
             '**' => [$this, 'pow'],
 
             ' instanceof ' => [$this, 'isInstanceof'],
+            ' not instanceof ' => [$this, 'isNotInstanceof'],
 
         ];
     }
@@ -437,5 +438,15 @@ class CoreOperators
         }
 
         return new Symbol($object instanceof $className, false, Symbol::TYPE_BOOL);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function isNotInstanceof(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        $isInstance = $this->isInstanceof($lhs, $rhs);
+        return new Symbol(!$isInstance->value(), $isInstance->interruptKeyPath(), $isInstance->type());
     }
 }
