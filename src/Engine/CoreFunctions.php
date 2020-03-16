@@ -210,7 +210,7 @@ class CoreFunctions
         return empty($var);
     }
 
-    public function isInstanceof(object $var, string $class): bool
+    public function isInstanceof(string $class, object $var): bool
     {
         return $var instanceof $class;
     }

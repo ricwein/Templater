@@ -60,7 +60,6 @@ class SymbolHelper
             return false;
         }
 
-
         return $block->prefix() !== null;
     }
 

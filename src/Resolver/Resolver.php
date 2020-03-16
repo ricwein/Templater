@@ -16,6 +16,10 @@ use ricwein\Tokenizer\Tokenizer;
 
 class Resolver
 {
+    private const IGNORE_VAR = 0b00;
+    private const APPEND_VAR = 0b01;
+    private const PREPEND_VAR = 0b10;
+
     private array $bindings;
 
     /**
@@ -298,17 +302,17 @@ class Resolver
 
                         $value = new Symbol($keyPathFinder->get(), $resolvedSymbol->interruptKeyPath());
 
-                    } elseif ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
+                    } else if ($symbol->delimiter() === null && $resolvedSymbol->is(Symbol::ANY_DEFINABLE)) {
 
                         $value = clone $resolvedSymbol;
-
-                    } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
-
-                        $value = new Symbol(null, Symbol::TYPE_NULL);
 
                     } else if ($resolvedSymbol->is(Symbol::TYPE_STRING) && null !== $function = $this->getFunction($resolvedSymbol->value())) {
 
                         $value = new Symbol($function->call([$value->value()]), false);
+
+                    } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
+
+                        $value = new Symbol(null, Symbol::TYPE_NULL);
 
                     } else {
                         throw new RuntimeException(sprintf(
@@ -372,11 +376,11 @@ class Resolver
 
             // test()
             case SymbolHelper::isDirectUserFunctionCall($block):
-                return [new Symbol($this->resolveSymbolFunctionBlock($block, false), true)];
+                return [new Symbol($this->resolveSymbolFunctionBlock($block), true)];
 
             // value | test()
             case SymbolHelper::isChainedUserFunctionCall($block):
-                return [new Symbol($this->resolveSymbolFunctionBlock($block, true, $stateVar), true)];
+                return [new Symbol($this->resolveSymbolFunctionBlock($block, static::PREPEND_VAR, $stateVar), true)];
 
             // test[0] || [some, things][0]
             case SymbolHelper::isArrayAccess($block, $stateVar):
@@ -486,27 +490,30 @@ class Resolver
 
     /**
      * @param ResultBlock $block
-     * @param bool $prependValue
+     * @param int $handleVar
      * @param null|mixed $value
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveSymbolFunctionBlock(ResultBlock $block, bool $prependValue, $value = null)
+    private function resolveSymbolFunctionBlock(ResultBlock $block, int $handleVar = self::IGNORE_VAR, $value = null)
     {
         $function = $this->getFunction($block->prefix());
         if ($function === null) {
             throw new RuntimeException("Call to unknown function: {$block->prefix()}()", 500);
         }
 
-        $parameters = [];
-        if ($prependValue) {
-            $parameters[] = $value;
-        }
+        $parameters = $this->resolveParameterList($block->symbols());
 
-        $parameters = array_merge(
-            $parameters,
-            $this->resolveParameterList($block->symbols())
-        );
+        switch ($handleVar) {
+
+            case static::PREPEND_VAR:
+                $parameters = array_merge([$value], $parameters);
+                break;
+
+            case static::APPEND_VAR:
+                $parameters = array_merge($parameters, [$value]);
+                break;
+        }
 
         return $function->call($parameters);
     }

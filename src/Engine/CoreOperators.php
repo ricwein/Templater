@@ -55,6 +55,8 @@ class CoreOperators
             '%' => [$this, 'mod'],
             '**' => [$this, 'pow'],
 
+            ' instanceof ' => [$this, 'isInstanceof'],
+
         ];
     }
 
@@ -409,13 +411,31 @@ class CoreOperators
      * @inheritDoc
      * @throws RuntimeException
      */
-    public
-    function pow(Symbol $lhs, Symbol $rhs): Symbol
+    public function pow(Symbol $lhs, Symbol $rhs): Symbol
     {
         if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
         return new Symbol($lhs->value() ** $rhs->value(), false);
+    }
+
+    /**
+     * @inheritDoc
+     * @throws RuntimeException
+     */
+    public function isInstanceof(Symbol $lhs, Symbol $rhs): Symbol
+    {
+        if (!$lhs->is(Symbol::TYPE_OBJECT) || !$rhs->is(Symbol::TYPE_STRING)) {
+            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
+        }
+
+        $object = $lhs->value();
+        $className = $rhs->value(true);
+        if (strpos($className, '\\\\') !== false) {
+            $className = stripslashes($className);
+        }
+
+        return new Symbol($object instanceof $className, false, Symbol::TYPE_BOOL);
     }
 }
