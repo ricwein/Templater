@@ -139,7 +139,7 @@ class Resolver
             // Detected context-switch! Resolve previous context:
             $previousValue = null;
             if (null !== $previousKey = array_key_last($results)) {
-                $previousValue = $results[$previousKey]['value']->value();
+                $previousValue = $results[$previousKey]['value'];
             }
             $results[] = ['value' => $this->resolveContextSymbols($current['context'], false, $previousValue), 'delimiter' => $current['delimiter']];
 
@@ -150,7 +150,7 @@ class Resolver
         // resolve remaining open context
         $previousValue = null;
         if (null !== $previousKey = array_key_last($results)) {
-            $previousValue = $results[$previousKey]['value']->value();
+            $previousValue = $results[$previousKey]['value'];
         }
         $results[] = ['value' => $this->resolveContextSymbols($current['context'], true, $previousValue), 'delimiter' => $current['delimiter']];
 
@@ -237,11 +237,11 @@ class Resolver
      * e.g. same part of an operator statement or belong to the same keypath iteration
      * @param ResultSymbolBase[] $symbols
      * @param bool $isLastContext
-     * @param mixed|null $stateValue
+     * @param Symbol $stateValue
      * @return Symbol
      * @throws RuntimeException
      */
-    private function resolveContextSymbols(array $symbols, bool $isLastContext, $stateValue = null): Symbol
+    private function resolveContextSymbols(array $symbols, bool $isLastContext, ?Symbol $stateValue = null): Symbol
     {
         if (count($symbols) < 1) {
             return new Symbol(null, Symbol::TYPE_NULL);
@@ -260,7 +260,7 @@ class Resolver
         /** @var Symbol|null $lastSymbol */
         $lastSymbol = null;
         /** @var Symbol $value */
-        $value = new Symbol(null, Symbol::TYPE_NULL);
+        $value = ($stateValue !== null) ? (clone $stateValue) : new Symbol(null, false, Symbol::TYPE_NULL);
         $keyPathFinder = new KeypathFinder($this->bindings);
 
         // iterate through list of symbols
@@ -308,7 +308,7 @@ class Resolver
 
                     } else if ($resolvedSymbol->is(Symbol::TYPE_STRING) && null !== $function = $this->getFunction($resolvedSymbol->value())) {
 
-                        $value = new Symbol($function->call([$stateValue]), false);
+                        $value = new Symbol($function->call([$value->value()]), false);
 
                     } else {
                         throw new RuntimeException(sprintf(
@@ -486,12 +486,12 @@ class Resolver
 
     /**
      * @param ResultBlock $block
-     * @param bool $preprendValue
+     * @param bool $prependValue
      * @param null|mixed $value
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveSymbolFunctionBlock(ResultBlock $block, bool $preprendValue, $value = null)
+    private function resolveSymbolFunctionBlock(ResultBlock $block, bool $prependValue, $value = null)
     {
         $function = $this->getFunction($block->prefix());
         if ($function === null) {
@@ -499,7 +499,7 @@ class Resolver
         }
 
         $parameters = [];
-        if ($preprendValue) {
+        if ($prependValue) {
             $parameters[] = $value;
         }
 

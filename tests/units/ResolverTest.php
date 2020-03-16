@@ -184,6 +184,9 @@ class ResolverTest extends TestCase
         $functions = (new CoreFunctions(new Config()))->get();
         $resolver = new Resolver($bindings, $functions);
 
+//        $this->assertSame(true, $resolver->resolve("data is array()"));
+//        die();
+
         $this->assertSame(false, $resolver->resolve('true && false'));
         $this->assertSame(true, $resolver->resolve('true || false'));
 
@@ -200,7 +203,7 @@ class ResolverTest extends TestCase
 
         // TODO: change behavior of Resolver to allow single-parameters functions like 'defined()' to
         // TODO: be called after a 'is' operator, implicit passing the lhs into the rhs functions, e.g.:
-        $this->assertSame(true, $resolver->resolve("data is array"));
+//        $this->assertSame(true, $resolver->resolve("data is array()"));
         $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
 
         $this->assertSame(true, $resolver->resolve("unknownvar is undefined"));

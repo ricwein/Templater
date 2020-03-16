@@ -56,7 +56,12 @@ class SymbolHelper
             return false;
         }
 
-        return $block->delimiter() === null && $block->prefix() !== null;
+        if ($block->delimiter() !== null) {
+            return false;
+        }
+
+
+        return $block->prefix() !== null;
     }
 
     public static function isChainedUserFunctionCall(ResultSymbolBase $block): bool
@@ -69,7 +74,11 @@ class SymbolHelper
             return false;
         }
 
-        return $block->delimiter() !== null && $block->delimiter()->is('|') && $block->prefix() !== null;
+        if ($block->delimiter() === null || $block->delimiter()->is('.')) {
+            return false;
+        }
+
+        return $block->prefix() !== null;
     }
 
     public static function isMethodCall(ResultSymbolBase $block): bool
@@ -82,7 +91,11 @@ class SymbolHelper
             return false;
         }
 
-        return $block->delimiter() !== null && $block->delimiter()->is('.') && $block->prefix() !== null;
+        if ($block->delimiter() === null || !$block->delimiter()->is('.')) {
+            return false;
+        }
+
+        return $block->prefix() !== null;
     }
 
     public static function isInlineArray(ResultSymbolBase $block): bool
