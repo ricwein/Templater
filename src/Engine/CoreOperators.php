@@ -259,30 +259,11 @@ class CoreOperators
      */
     public function is(Symbol $lhs, Symbol $rhs): Symbol
     {
-        $checkFor = $rhs->value(true);
-        if (is_string($checkFor)) {
-            $checkFor = strtolower($checkFor);
+        if ($rhs->is(Symbol::TYPE_BOOL)) {
+            return $rhs;
         }
 
-        switch ($checkFor) {
-
-            case 'undefined':
-            case 'null':
-            case null:
-                return new Symbol($lhs->is(Symbol::TYPE_NULL), false, Symbol::TYPE_BOOL);
-
-            case 'defined':
-                return new Symbol(!$lhs->is(Symbol::TYPE_NULL), false, Symbol::TYPE_BOOL);
-
-            case 'numeric':
-                return new Symbol($lhs->is(Symbol::ANY_NUMERIC), false, Symbol::TYPE_BOOL);
-
-            case 'scalar':
-                return new Symbol($lhs->is(Symbol::ANY_SCALAR), false, Symbol::TYPE_BOOL);
-
-            default:
-                return new Symbol($lhs->is($checkFor), false, Symbol::TYPE_BOOL);
-        }
+        return new Symbol($lhs->value() === $rhs->value(), false, Symbol::TYPE_BOOL);
     }
 
     /**

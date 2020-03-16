@@ -137,18 +137,31 @@ class Resolver
             }
 
             // Detected context-switch! Resolve previous context:
-            $results[] = ['value' => $this->resolveContextSymbols($current['context'], false), 'delimiter' => $current['delimiter']];
+            $previousValue = null;
+            if (null !== $previousKey = array_key_last($results)) {
+                $previousValue = $results[$previousKey]['value']->value();
+            }
+            $results[] = ['value' => $this->resolveContextSymbols($current['context'], false, $previousValue), 'delimiter' => $current['delimiter']];
 
             // Start new context:
             $current = ['delimiter' => $symbol->delimiter(), 'context' => [$symbol]];
         }
 
         // resolve remaining open context
-        $results[] = ['value' => $this->resolveContextSymbols($current['context'], true), 'delimiter' => $current['delimiter']];
+        $previousValue = null;
+        if (null !== $previousKey = array_key_last($results)) {
+            $previousValue = $results[$previousKey]['value']->value();
+        }
+        $results[] = ['value' => $this->resolveContextSymbols($current['context'], true, $previousValue), 'delimiter' => $current['delimiter']];
 
         return $this->resolveContextResults($results);
     }
 
+    /**
+     * @param array $results
+     * @return Symbol
+     * @throws RuntimeException
+     */
     private function resolveContextResults(array $results): Symbol
     {
         $first = array_shift($results);
@@ -224,10 +237,11 @@ class Resolver
      * e.g. same part of an operator statement or belong to the same keypath iteration
      * @param ResultSymbolBase[] $symbols
      * @param bool $isLastContext
+     * @param mixed|null $stateValue
      * @return Symbol
      * @throws RuntimeException
      */
-    private function resolveContextSymbols(array $symbols, bool $isLastContext): Symbol
+    private function resolveContextSymbols(array $symbols, bool $isLastContext, $stateValue = null): Symbol
     {
         if (count($symbols) < 1) {
             return new Symbol(null, Symbol::TYPE_NULL);
@@ -257,8 +271,6 @@ class Resolver
             // resolve the current symbol
 
             /** @var Symbol[] $resolvedSymbol */
-            $resolvedSymbols = [];
-
             if ($symbol instanceof ResultBlock) {
                 $resolvedSymbols = $this->resolveSymbolBlock($symbol, $value->value());
             } else if ($symbol instanceof ResultSymbol) {
@@ -293,6 +305,10 @@ class Resolver
                     } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
 
                         $value = new Symbol(null, Symbol::TYPE_NULL);
+
+                    } else if ($resolvedSymbol->is(Symbol::TYPE_STRING) && null !== $function = $this->getFunction($resolvedSymbol->value())) {
+
+                        $value = new Symbol($function->call([$stateValue]), false);
 
                     } else {
                         throw new RuntimeException(sprintf(

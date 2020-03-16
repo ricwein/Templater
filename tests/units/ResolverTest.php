@@ -78,7 +78,7 @@ class ResolverTest extends TestCase
         $this->assertSame('php', $resolver->resolve('file.path().extension'));
         $this->assertSame('text/x-php', $resolver->resolve('file.getType()'));
         $this->assertSame('text/x-php', $resolver->resolve('file.getType(false)'));
-        $this->assertSame(hash_file('sha256', __FILE__), $resolver->resolve("file.getHash(constant('\\ricwein\FileSystem\Enum\Hash::CONTENT'))"));
+        $this->assertSame(hash_file('sha256', __FILE__), $resolver->resolve('file.getHash(constant("\\\\ricwein\\\\FileSystem\\\\Enum\\\\Hash::CONTENT"))'));
         $this->assertSame('text/x-php; charset=us-ascii', $resolver->resolve('file.getType(true)'));
     }
 
@@ -178,6 +178,7 @@ class ResolverTest extends TestCase
             'nested' => ['test' => 'success'],
             'strings' => ['yay', 'no', 'another string'],
             'non_value' => null,
+            'file' => new File(new Storage\Disk(__FILE__)),
         ];
 
         $functions = (new CoreFunctions(new Config()))->get();
@@ -199,18 +200,27 @@ class ResolverTest extends TestCase
 
         // TODO: change behavior of Resolver to allow single-parameters functions like 'defined()' to
         // TODO: be called after a 'is' operator, implicit passing the lhs into the rhs functions, e.g.:
-//        $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
+        $this->assertSame(true, $resolver->resolve("data is array"));
+        $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
 
-        $this->assertSame(true, $resolver->resolve("unknownvar is 'undefined'"));
-        $this->assertSame(false, $resolver->resolve("unknownvar is not 'undefined'"));
-        $this->assertSame(false, $resolver->resolve("unknownvar is 'defined'"));
-        $this->assertSame(true, $resolver->resolve("unknownvar is not 'defined'"));
-        $this->assertSame(true, $resolver->resolve("10.1 is 'numeric'"));
-        $this->assertSame(true, $resolver->resolve("10.1 is 'float'"));
-        $this->assertSame(false, $resolver->resolve("10.1 is 'int'"));
-        $this->assertSame(true, $resolver->resolve("10.1 is not 'int'"));
-        $this->assertSame(true, $resolver->resolve("non_value is 'null'"));
-        $this->assertSame(true, $resolver->resolve("strings | first() is 'string'"));
+        $this->assertSame(true, $resolver->resolve("unknownvar is undefined"));
+        $this->assertSame(false, $resolver->resolve("unknownvar is not undefined"));
+        $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
+        $this->assertSame(true, $resolver->resolve("unknownvar is not defined"));
+
+//        $this->assertSame(true, $resolver->resolve("file is instanceof('File')"));
+
+        $this->assertSame(false, $resolver->resolve("data is undefined"));
+        $this->assertSame(true, $resolver->resolve("data.1 is not undefined"));
+        $this->assertSame(true, $resolver->resolve("data is defined"));
+        $this->assertSame(false, $resolver->resolve("data is not defined"));
+
+        $this->assertSame(true, $resolver->resolve("10.1 is numeric"));
+        $this->assertSame(true, $resolver->resolve("10.1 is float"));
+        $this->assertSame(false, $resolver->resolve("10.1 is int"));
+        $this->assertSame(true, $resolver->resolve("10.1 is not int"));
+        $this->assertSame(true, $resolver->resolve("non_value is null"));
+        $this->assertSame(true, $resolver->resolve("strings | first() is string"));
 
         $this->assertSame(true, $resolver->resolve("2 in (1...10) "));
         $this->assertSame(true, $resolver->resolve("11 not in (1...10) "));

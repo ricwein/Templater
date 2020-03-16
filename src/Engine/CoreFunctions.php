@@ -49,6 +49,15 @@ class CoreFunctions
             'undefined' => [$this, 'isUndefined'],
             'empty' => [$this, 'isEmpty'],
             'iterable' => [$this, 'isIterable'],
+            'string' => 'is_string',
+            'bool' => 'is_bool',
+            'float' => 'is_float',
+            'int' => 'is_int',
+            'numeric' => 'is_numeric',
+            'array' => 'is_array',
+            'object' => 'is_object',
+            'scalar' => 'is_scalar',
+            'instanceof' => [$this, 'isInstanceof'],
 
             'count' => 'count',
             'length' => [$this, 'length'],
@@ -199,6 +208,11 @@ class CoreFunctions
     public function isEmpty($var): bool
     {
         return empty($var);
+    }
+
+    public function isInstanceof(object $var, string $class): bool
+    {
+        return $var instanceof $class;
     }
 
     public function capitalize(string $string): string
