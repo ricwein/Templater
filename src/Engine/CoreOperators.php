@@ -349,7 +349,7 @@ class CoreOperators
      */
     public function plus(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -362,7 +362,7 @@ class CoreOperators
      */
     public function minus(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -375,7 +375,7 @@ class CoreOperators
      */
     public function multiply(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -388,7 +388,7 @@ class CoreOperators
      */
     public function divide(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -401,7 +401,7 @@ class CoreOperators
      */
     public function mod(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -414,7 +414,7 @@ class CoreOperators
      */
     public function pow(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::ANY_NUMERIC) || !$rhs->is(Symbol::ANY_NUMERIC)) {
+        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
