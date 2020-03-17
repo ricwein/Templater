@@ -111,7 +111,7 @@ class ForLoop extends Processor
             false === preg_match_all('/{%\s*endfor\s*%}/U', $content, $closeLoopMatches, PREG_OFFSET_CAPTURE)
         ) {
             return null;
-        } elseif ((count($openLoopMatches) < 3) || count($closeLoopMatches) !== 1) {
+        } elseif ((count($openLoopMatches) !== 6) || count($closeLoopMatches) !== 1) {
             return null;
         } elseif (count($openLoopMatches[0]) !== count($closeLoopMatches[0])) {
             throw new UnexpectedValueException("unmatching 'for' and 'endfor' counts");
@@ -120,13 +120,14 @@ class ForLoop extends Processor
         // merge open and close loops into a single list for better sorting
         $loopList = [];
         foreach (array_keys($openLoopMatches[0]) as $key) {
+
             $loopList[] = [
                 'type' => 'open',
                 'nesting' => 0,
                 'offset' => $openLoopMatches[0][$key][1],
                 'variable_as' => trim($openLoopMatches[1][$key][0]),
                 'variable_from' => trim($openLoopMatches[2][$key][0]),
-                'condition' => isset($openLoopMatches[3][$key][0]) ? $openLoopMatches[5][$key][0] : null,
+                'condition' => ($openLoopMatches[5][$key][0] !== -1 && !empty($openLoopMatches[5][$key][0])) ? $openLoopMatches[5][$key][0] : null,
                 'content' => $openLoopMatches[0][$key][0],
             ];
 
@@ -177,7 +178,7 @@ class ForLoop extends Processor
                 /**
                  * @ATTENTION
                  * since preg_match_all with PREG_OFFSET_CAPTURE operates with
-                 * NON MULTIEBYTE (non-unicode, non-utf8) string offsets, the following
+                 * NON MULTI-BYTE (non-unicode, non-utf8) string offsets, the following
                  * offset-based string operations MUST BE done with non multi-byte-safe
                  * implementation!
                  *
