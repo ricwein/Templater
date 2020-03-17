@@ -145,7 +145,7 @@ class Resolver
             if (null !== $previousKey = array_key_last($results)) {
                 $previousValue = $results[$previousKey]['value'];
             }
-            $results[] = ['value' => $this->resolveContextSymbols($current['context'], false, $previousValue), 'delimiter' => $current['delimiter']];
+            $results[] = ['value' => $this->resolveContextSymbols($current['context'], $previousValue), 'delimiter' => $current['delimiter']];
 
             // Start new context:
             $current = ['delimiter' => $symbol->delimiter(), 'context' => [$symbol]];
@@ -156,7 +156,7 @@ class Resolver
         if (null !== $previousKey = array_key_last($results)) {
             $previousValue = $results[$previousKey]['value'];
         }
-        $results[] = ['value' => $this->resolveContextSymbols($current['context'], true, $previousValue), 'delimiter' => $current['delimiter']];
+        $results[] = ['value' => $this->resolveContextSymbols($current['context'],  $previousValue), 'delimiter' => $current['delimiter']];
 
         return $this->resolveContextResults($results);
     }
@@ -240,12 +240,11 @@ class Resolver
      * Expects list of Symbols/SymbolBlocks which belong to the same context,
      * e.g. same part of an operator statement or belong to the same keypath iteration
      * @param ResultSymbolBase[] $symbols
-     * @param bool $isLastContext
      * @param Symbol $stateValue
      * @return Symbol
      * @throws RuntimeException
      */
-    private function resolveContextSymbols(array $symbols, bool $isLastContext, ?Symbol $stateValue = null): Symbol
+    private function resolveContextSymbols(array $symbols, ?Symbol $stateValue = null): Symbol
     {
         if (count($symbols) < 1) {
             return new Symbol(null, Symbol::TYPE_NULL);
@@ -310,17 +309,10 @@ class Resolver
 
                         $value = new Symbol($function->call([$value->value()]), false);
 
-                    } else if ($symbol !== $symbols[array_key_last($symbols)] || !$isLastContext) {
+                    } else {
 
                         $value = new Symbol(null, Symbol::TYPE_NULL);
 
-                    } else {
-                        throw new RuntimeException(sprintf(
-                            "Unable to resolve variable path: %s. Unknown key: %s in path: %s",
-                            new Result($symbols),
-                            $symbol,
-                            implode('.', $keyPathFinder->getPath())
-                        ), 500);
                     }
 
                 } else {
@@ -568,7 +560,7 @@ class Resolver
                     throw new RuntimeException("Found unexpected delimiter '{$symbol->delimiter()}' in inline assoc definition: {$block}", 500);
                 }
 
-                $result[$key] = $this->resolveContextSymbols($unresolvedSymbols, false)->value();
+                $result[$key] = $this->resolveContextSymbols($unresolvedSymbols)->value();
                 $key = null;
                 $unresolvedSymbols = [];
             }
@@ -580,7 +572,7 @@ class Resolver
             throw new RuntimeException("Unexpected end of inline assoc definition: {$block}", 500);
         }
 
-        $result[$key] = $this->resolveContextSymbols($unresolvedSymbols, true)->value();
+        $result[$key] = $this->resolveContextSymbols($unresolvedSymbols)->value();
 
         return $result;
     }

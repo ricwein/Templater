@@ -39,7 +39,7 @@ class CoreFunctions
 
             'abs' => 'abs',
             'round' => [$this, 'round'],
-            'range' => [$this, 'split'],
+            'range' => [$this, 'range'],
             'max' => 'max',
             'min' => 'min',
 
@@ -142,9 +142,13 @@ class CoreFunctions
         throw new UnexpectedValueException(sprintf("Invalid Datatype for slice() input: %s", gettype($input)), 500);
     }
 
-    public function escape(string $string): string
+    public function escape($string): string
     {
-        return htmlspecialchars($string, ENT_QUOTES | ENT_SUBSTITUTE);
+        if (is_string($string) || (is_object($string) && method_exists($string, '__toString'))) {
+            return htmlspecialchars((string)$string, ENT_QUOTES | ENT_SUBSTITUTE);
+        }
+
+        return $string;
     }
 
     public function range($start, $end, int $steps = 1)

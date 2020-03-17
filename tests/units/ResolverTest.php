@@ -34,22 +34,6 @@ class ResolverTest extends TestCase
         $this->assertSame('value2', $resolver->resolve("['value1', 'value2'][1]"));
     }
 
-    public function testUnmatchingBindings()
-    {
-        $resolver = new Resolver();
-
-        $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
-        $resolver->resolve("unknownvar");
-    }
-
-    public function testNestedUnmatchingBindings()
-    {
-        $resolver = new Resolver();
-
-        $this->expectException(\ricwein\Templater\Exceptions\RuntimeException::class);
-        $resolver->resolve("unknown.var");
-    }
-
     public function testBindingsResolving()
     {
         $bindings = [
@@ -198,15 +182,19 @@ class ResolverTest extends TestCase
         $this->assertSame(true, $resolver->resolve("'10'  matches '/^\\d+$/'"));
         $this->assertSame(true, $resolver->resolve("10  matches '/^\\d+$/'"));
 
-        // TODO: change behavior of Resolver to allow single-parameters functions like 'defined()' to
-        // TODO: be called after a 'is' operator, implicit passing the lhs into the rhs functions, e.g.:
         $this->assertSame(true, $resolver->resolve("data is array"));
         $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
-
+        $this->assertSame(false, $resolver->resolve("unknownvar.test is defined"));
         $this->assertSame(true, $resolver->resolve("unknownvar is undefined"));
+        $this->assertSame(true, $resolver->resolve("data.test is undefined"));
+        $this->assertSame(true, $resolver->resolve("unknownvar.test is undefined"));
         $this->assertSame(false, $resolver->resolve("unknownvar is not undefined"));
         $this->assertSame(false, $resolver->resolve("unknownvar is defined"));
         $this->assertSame(true, $resolver->resolve("unknownvar is not defined"));
+
+        $this->assertSame('-', $resolver->resolve("(unknownvar.test ?? 0) > 0 ? unknownvar.test : '-'"));
+        $this->assertSame('-', $resolver->resolve("(unknownvar ?? 0) > 0 ? unknownvar.test : '-'"));
+        $this->assertSame('-', $resolver->resolve("(data.unknownkey ?? 0) > 0 ? unknownvar.test : '-'"));
 
         $this->assertSame(true, $resolver->resolve("file instanceof '\\\\ricwein\\\\FileSystem\\\\File'"));
 
@@ -240,5 +228,14 @@ class ResolverTest extends TestCase
 
         $this->assertSame("was nil", $resolver->resolve("(nested.unExisting ?? 'was nil') ?? 'doh'"));
         $this->assertSame("success", $resolver->resolve("nested.(strings.1)"));
+    }
+
+    public function testLateResolution()
+    {
+        $bindings = [];
+        $functions = (new CoreFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
+
+        $this->assertSame(null, $resolver->resolve("(unknownvar.test ?? 0) > 0 ? '-' ~ unknownvar.test"));
     }
 }
