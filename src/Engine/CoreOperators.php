@@ -285,10 +285,6 @@ class CoreOperators
      */
     public function and(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::TYPE_BOOL) || !$rhs->is(Symbol::TYPE_BOOL)) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
         return new Symbol($lhs->value() && $rhs->value(), false, Symbol::TYPE_BOOL);
     }
 
@@ -298,10 +294,6 @@ class CoreOperators
      */
     public function or(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::TYPE_BOOL) || !$rhs->is(Symbol::TYPE_BOOL)) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
         return new Symbol($lhs->value() || $rhs->value(), false, Symbol::TYPE_BOOL);
     }
 
@@ -311,10 +303,6 @@ class CoreOperators
      */
     public function xor(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::TYPE_BOOL) || !$rhs->is(Symbol::TYPE_BOOL)) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
         return new Symbol($lhs->value() xor $rhs->value(), false, Symbol::TYPE_BOOL);
     }
 
