@@ -5,7 +5,8 @@ namespace ricwein\Templater\Engine;
 
 
 use ricwein\Templater\Exceptions\RuntimeException;
-use ricwein\Templater\Resolver\Symbol;
+use ricwein\Templater\Resolver\Symbol\ResolvedSymbol;
+use ricwein\Templater\Resolver\Symbol\Symbol;
 
 class CoreOperators
 {
@@ -86,7 +87,7 @@ class CoreOperators
      */
     public function equal(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() === $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() === $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -95,7 +96,7 @@ class CoreOperators
      */
     public function notEqual(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() !== $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() !== $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -104,7 +105,7 @@ class CoreOperators
      */
     public function compare(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() <=> $rhs->value(), false, Symbol::TYPE_INT);
+        return new ResolvedSymbol($lhs->value() <=> $rhs->value(), false, ResolvedSymbol::TYPE_INT);
     }
 
     /**
@@ -113,7 +114,7 @@ class CoreOperators
      */
     public function greaterOrEqual(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() >= $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() >= $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -122,7 +123,7 @@ class CoreOperators
      */
     public function lesserOrEqual(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() <= $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() <= $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -131,7 +132,7 @@ class CoreOperators
      */
     public function greater(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() > $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() > $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -140,7 +141,7 @@ class CoreOperators
      */
     public function lesser(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() < $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() < $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -148,7 +149,7 @@ class CoreOperators
      */
     public function nullCoalescing(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return ($lhs->value() !== null) ? (clone $lhs) : (clone $rhs);
+        return ($lhs->value() !== null) ? $lhs : $rhs;
     }
 
     /**
@@ -157,7 +158,7 @@ class CoreOperators
      */
     public function binaryOr(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() | $rhs->value(), false, Symbol::TYPE_INT);
+        return new ResolvedSymbol($lhs->value() | $rhs->value(), false, ResolvedSymbol::TYPE_INT);
     }
 
     /**
@@ -166,7 +167,7 @@ class CoreOperators
      */
     public function binaryAnd(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() & $rhs->value(), false, Symbol::TYPE_INT);
+        return new ResolvedSymbol($lhs->value() & $rhs->value(), false, ResolvedSymbol::TYPE_INT);
     }
 
     /**
@@ -177,15 +178,14 @@ class CoreOperators
     {
         switch (true) {
 
-            case $rhs->is(Symbol::TYPE_ARRAY):
-                return new Symbol(in_array($lhs->value(), $rhs->value(), true), false, Symbol::TYPE_BOOL);
+            case $rhs->is(ResolvedSymbol::TYPE_ARRAY):
+                return new ResolvedSymbol(in_array($lhs->value(), $rhs->value(), true), false, ResolvedSymbol::TYPE_BOOL);
 
-            case $lhs->is(Symbol::TYPE_STRING) && $rhs->is(Symbol::TYPE_STRING):
-                return new Symbol(strpos($lhs->value(), $rhs->value()) !== false, false, Symbol::TYPE_BOOL);
+            case $lhs->is(ResolvedSymbol::TYPE_STRING) && $rhs->is(ResolvedSymbol::TYPE_STRING):
+                return new ResolvedSymbol(strpos($lhs->value(), $rhs->value()) !== false, false, ResolvedSymbol::TYPE_BOOL);
 
             default:
                 throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-
         }
     }
 
@@ -196,7 +196,7 @@ class CoreOperators
     public function notIn(Symbol $lhs, Symbol $rhs): Symbol
     {
         $in = $this->in($lhs, $rhs);
-        return new Symbol(!$in->value(), $in->interruptKeyPath(), $in->type());
+        return new ResolvedSymbol(!$in->value(), $in->interruptKeyPath(), $in->type());
     }
 
     /**
@@ -207,12 +207,12 @@ class CoreOperators
     {
         switch (true) {
 
-            case $rhs->is(Symbol::TYPE_ARRAY):
+            case $rhs->is(ResolvedSymbol::TYPE_ARRAY):
                 $rhsArray = (array)$rhs->value();
-                return new Symbol($lhs->value() === $rhsArray[array_key_first($rhsArray)], false, Symbol::TYPE_BOOL);
+                return new ResolvedSymbol($lhs->value() === $rhsArray[array_key_first($rhsArray)], false, ResolvedSymbol::TYPE_BOOL);
 
-            case $lhs->is(Symbol::TYPE_STRING) && $rhs->is(Symbol::TYPE_STRING):
-                return new Symbol(strpos($lhs->value(), $rhs->value()) === 0, false, Symbol::TYPE_BOOL);
+            case $lhs->is(ResolvedSymbol::TYPE_STRING) && $rhs->is(ResolvedSymbol::TYPE_STRING):
+                return new ResolvedSymbol(strpos($lhs->value(), $rhs->value()) === 0, false, ResolvedSymbol::TYPE_BOOL);
 
             default:
                 throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
@@ -227,12 +227,12 @@ class CoreOperators
     {
         switch (true) {
 
-            case $rhs->is(Symbol::TYPE_ARRAY):
+            case $rhs->is(ResolvedSymbol::TYPE_ARRAY):
                 $rhsArray = (array)$rhs->value();
-                return new Symbol($lhs->value() === $rhsArray[array_key_last($rhsArray)], false, Symbol::TYPE_BOOL);
+                return new ResolvedSymbol($lhs->value() === $rhsArray[array_key_last($rhsArray)], false, ResolvedSymbol::TYPE_BOOL);
 
-            case $lhs->is(Symbol::TYPE_STRING) && $rhs->is(Symbol::TYPE_STRING):
-                return new Symbol(strpos($lhs->value(), $rhs->value()) === (strlen($lhs->value()) - strlen($rhs->value())), false, Symbol::TYPE_BOOL);
+            case $lhs->is(ResolvedSymbol::TYPE_STRING) && $rhs->is(ResolvedSymbol::TYPE_STRING):
+                return new ResolvedSymbol(strpos($lhs->value(), $rhs->value()) === (strlen($lhs->value()) - strlen($rhs->value())), false, ResolvedSymbol::TYPE_BOOL);
 
             default:
                 throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
@@ -245,14 +245,10 @@ class CoreOperators
      */
     public function pregMatch(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$rhs->is(Symbol::TYPE_STRING)) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol(
+        return new ResolvedSymbol(
             preg_match($rhs->value(), $lhs->value()) === 1,
             false,
-            Symbol::TYPE_BOOL
+            ResolvedSymbol::TYPE_BOOL
         );
     }
 
@@ -266,7 +262,7 @@ class CoreOperators
             return $rhs;
         }
 
-        return new Symbol($lhs->value() === $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() === $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -276,7 +272,7 @@ class CoreOperators
     public function isNot(Symbol $lhs, Symbol $rhs): Symbol
     {
         $is = $this->is($lhs, $rhs);
-        return new Symbol(!$is->value(), $is->interruptKeyPath(), $is->type());
+        return new ResolvedSymbol(!$is->value(), $is->interruptKeyPath(), $is->type());
     }
 
     /**
@@ -285,7 +281,7 @@ class CoreOperators
      */
     public function and(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() && $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() && $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -294,7 +290,7 @@ class CoreOperators
      */
     public function or(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() || $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() || $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -303,7 +299,7 @@ class CoreOperators
      */
     public function xor(Symbol $lhs, Symbol $rhs): Symbol
     {
-        return new Symbol($lhs->value() xor $rhs->value(), false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($lhs->value() xor $rhs->value(), false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -313,12 +309,12 @@ class CoreOperators
     public function range(Symbol $lhs, Symbol $rhs): Symbol
     {
         if (
-            (!$lhs->is(Symbol::ANY_NUMERIC) && $lhs->is(Symbol::TYPE_STRING))
-            || (!$rhs->is(Symbol::ANY_NUMERIC) && $rhs->is(Symbol::TYPE_STRING))
+            (!$lhs->is(ResolvedSymbol::ANY_NUMERIC) && $lhs->is(ResolvedSymbol::TYPE_STRING))
+            || (!$rhs->is(ResolvedSymbol::ANY_NUMERIC) && $rhs->is(ResolvedSymbol::TYPE_STRING))
         ) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
-        return new Symbol(range($lhs->value(), $rhs->value()), false, Symbol::TYPE_ARRAY);
+        return new ResolvedSymbol(range($lhs->value(), $rhs->value()), false, ResolvedSymbol::TYPE_ARRAY);
     }
 
     /**
@@ -327,8 +323,7 @@ class CoreOperators
      */
     public function concat(Symbol $lhs, Symbol $rhs): Symbol
     {
-        $value = $lhs->value() . $rhs->value();
-        return new Symbol($value, $lhs->interruptKeyPath() || $rhs->interruptKeyPath(), Symbol::TYPE_STRING);
+        return new ResolvedSymbol($lhs->value() . $rhs->value(), $lhs->interruptKeyPath() || $rhs->interruptKeyPath(), ResolvedSymbol::TYPE_STRING);
     }
 
     /**
@@ -337,11 +332,7 @@ class CoreOperators
      */
     public function plus(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() + $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() + $rhs->value(), false);
     }
 
     /**
@@ -350,11 +341,7 @@ class CoreOperators
      */
     public function minus(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() - $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() - $rhs->value(), false);
     }
 
     /**
@@ -363,11 +350,7 @@ class CoreOperators
      */
     public function multiply(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() * $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() * $rhs->value(), false);
     }
 
     /**
@@ -376,11 +359,7 @@ class CoreOperators
      */
     public function divide(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() / $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() / $rhs->value(), false);
     }
 
     /**
@@ -389,11 +368,7 @@ class CoreOperators
      */
     public function mod(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() % $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() % $rhs->value(), false);
     }
 
     /**
@@ -402,11 +377,7 @@ class CoreOperators
      */
     public function pow(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if ((!$lhs->is(Symbol::ANY_NUMERIC) && !is_numeric($lhs->value())) || (!$rhs->is(Symbol::ANY_NUMERIC) && !is_numeric($rhs->value()))) {
-            throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
-        }
-
-        return new Symbol($lhs->value() ** $rhs->value(), false);
+        return new ResolvedSymbol($lhs->value() ** $rhs->value(), false);
     }
 
     /**
@@ -415,7 +386,7 @@ class CoreOperators
      */
     public function isInstanceof(Symbol $lhs, Symbol $rhs): Symbol
     {
-        if (!$lhs->is(Symbol::TYPE_OBJECT) || !$rhs->is(Symbol::TYPE_STRING)) {
+        if (!$lhs->is(ResolvedSymbol::TYPE_OBJECT) || !$rhs->is(ResolvedSymbol::TYPE_STRING)) {
             throw static::datatypeException(__METHOD__, $lhs->value(), $rhs->value());
         }
 
@@ -425,7 +396,7 @@ class CoreOperators
             $className = stripslashes($className);
         }
 
-        return new Symbol($object instanceof $className, false, Symbol::TYPE_BOOL);
+        return new ResolvedSymbol($object instanceof $className, false, ResolvedSymbol::TYPE_BOOL);
     }
 
     /**
@@ -435,6 +406,6 @@ class CoreOperators
     public function isNotInstanceof(Symbol $lhs, Symbol $rhs): Symbol
     {
         $isInstance = $this->isInstanceof($lhs, $rhs);
-        return new Symbol(!$isInstance->value(), $isInstance->interruptKeyPath(), $isInstance->type());
+        return new ResolvedSymbol(!$isInstance->value(), $isInstance->interruptKeyPath(), $isInstance->type());
     }
 }

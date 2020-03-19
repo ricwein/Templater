@@ -3,6 +3,7 @@
 
 namespace ricwein\Templater\Resolver;
 
+use ricwein\Templater\Resolver\Symbol\Symbol;
 use ricwein\Tokenizer\Result\ResultBlock;
 use ricwein\Tokenizer\Result\ResultSymbol;
 use ricwein\Tokenizer\Result\ResultSymbolBase;
@@ -136,7 +137,7 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isArrayAccess(ResultSymbolBase $block, $currentStateVar = null): bool
+    public static function isArrayAccess(ResultSymbolBase $block, Symbol $value = null): bool
     {
         if (!$block instanceof ResultBlock) {
             return false;
@@ -146,9 +147,9 @@ class SymbolHelper
             return false;
         }
 
-        if ($currentStateVar === null) {
+        if ($value === null) {
             return $block->prefix() !== null;
-        } elseif (is_array($currentStateVar)) {
+        } elseif ($value->is(Symbol::TYPE_ARRAY)) {
             return true;
         }
 
