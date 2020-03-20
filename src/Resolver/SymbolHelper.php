@@ -147,7 +147,7 @@ class SymbolHelper
             return false;
         }
 
-        if ($value === null) {
+        if ($value === null || $value->is(Symbol::TYPE_NULL)) {
             return $block->prefix() !== null;
         } elseif ($value->is(Symbol::TYPE_ARRAY)) {
             return true;

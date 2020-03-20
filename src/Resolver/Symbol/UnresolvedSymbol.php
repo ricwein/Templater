@@ -15,9 +15,9 @@ class UnresolvedSymbol extends Symbol
     private array $symbols = [];
 
     /**
-     * @var ResolvedSymbol|null
+     * @var Symbol|null
      */
-    private ?ResolvedSymbol $resolvedCache = null;
+    private ?Symbol $resolvedCache = null;
 
     /**
      * @var Symbol|null
@@ -30,11 +30,9 @@ class UnresolvedSymbol extends Symbol
      * @inheritDoc
      * @param ResultSymbolBase[] $symbols
      */
-    public function __construct(array $symbols, Resolver $resolver, bool $interruptKeyPath, ?string $type = null)
+    public function __construct(array $symbols, Resolver $resolver)
     {
         $this->symbols = $symbols;
-        $this->interruptKeyPath = $interruptKeyPath;
-        $this->type = $type;
         $this->resolver = $resolver;
     }
 
@@ -50,21 +48,19 @@ class UnresolvedSymbol extends Symbol
     }
 
     /**
-     * @return ResolvedSymbol
+     * @return Symbol
      * @throws RuntimeException
      */
-    public function resolved(): ResolvedSymbol
+    public function resolved(): Symbol
     {
         if ($this->resolvedCache) {
             return $this->resolvedCache;
         }
 
-        $value = $this->resolver->resolveContextSymbols($this->symbols, $this->predecessorSymbol);
-
-        $symbol = new ResolvedSymbol($value->value(), $this->interruptKeyPath, $this->type);
+        $symbol = $this->resolver->resolveContextSymbols($this->symbols, $this->predecessorSymbol);
         $this->resolvedCache = $symbol;
 
-        return $this->resolvedCache;
+        return $symbol;
     }
 
     /**

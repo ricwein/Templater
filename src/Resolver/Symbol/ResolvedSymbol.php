@@ -15,6 +15,16 @@ class ResolvedSymbol extends Symbol
     private $value;
 
     /**
+     * @var string
+     */
+    protected ?string $type;
+
+    /**
+     * @var bool
+     */
+    protected bool $interruptKeyPath;
+
+    /**
      * Symbol constructor.
      * @param $value
      * @param bool $interruptKeyPath
@@ -76,5 +86,15 @@ class ResolvedSymbol extends Symbol
         }
 
         return $this->value;
+    }
+
+    public function type(): string
+    {
+        return $this->type;
+    }
+
+    public function interruptKeyPath(): bool
+    {
+        return $this->interruptKeyPath;
     }
 }

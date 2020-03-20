@@ -22,27 +22,11 @@ abstract class Symbol
     public const ANY_KEYPATH_PART = [self::TYPE_STRING, self::TYPE_INT];
     public const ANY_NUMERIC = [self::TYPE_INT, self::TYPE_FLOAT];
 
-    /**
-     * @var string
-     */
-    protected ?string $type;
-
-    /**
-     * @var bool
-     */
-    protected bool $interruptKeyPath;
-
     abstract public function value(bool $trimmed = false);
 
-    public function interruptKeyPath(): bool
-    {
-        return $this->interruptKeyPath;
-    }
+    abstract public function interruptKeyPath(): bool;
 
-    public function type(): string
-    {
-        return $this->type;
-    }
+    abstract public function type(): string;
 
     public function is($type): bool
     {

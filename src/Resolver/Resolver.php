@@ -146,7 +146,7 @@ class Resolver
             }
 
             // Detected context-switch! Resolve previous context:
-            $contextSymbols = new UnresolvedSymbol($current['context'], $this, false);
+            $contextSymbols = new UnresolvedSymbol($current['context'], $this);
             if (null !== $previousKey = array_key_last($results)) {
                 $contextSymbols->withPredecessorSymbol($results[$previousKey]['symbol']);
             }
@@ -157,7 +157,7 @@ class Resolver
         }
 
         // resolve remaining open context
-        $contextSymbols = new UnresolvedSymbol($current['context'], $this, false);
+        $contextSymbols = new UnresolvedSymbol($current['context'], $this);
         if (null !== $previousKey = array_key_last($results)) {
             $contextSymbols->withPredecessorSymbol($results[$previousKey]['symbol']);
         }
@@ -275,13 +275,14 @@ class Resolver
         // respects different symbol delimiters like:
         //   [keypaths, function-calls, conditions, operations]
         foreach ($symbols as $symbol) {
+
             // resolve the current symbol
 
             /** @var ResolvedSymbol[] $resolvedSymbol */
             if ($symbol instanceof ResultBlock) {
                 $resolvedSymbols = $this->resolveSymbolBlock($symbol, $value);
             } else if ($symbol instanceof ResultSymbol) {
-                $resolvedSymbols = $this->resolveSymbol($symbol, $value);
+                $resolvedSymbols = [$this->resolveSymbol($symbol, $value)];
             } else {
                 throw new RuntimeException(sprintf("FATAL: Invalid Symbol type: %s.", get_class($symbol)), 500);
             }
@@ -307,7 +308,7 @@ class Resolver
 
                     } else if ($symbol->delimiter() === null && $resolvedSymbol->is(ResolvedSymbol::ANY_DEFINABLE)) {
 
-                        $value = clone $resolvedSymbol;
+                        $value = $resolvedSymbol;
 
                     } else if ($resolvedSymbol->is(ResolvedSymbol::TYPE_STRING) && null !== $function = $this->getFunction($resolvedSymbol->value())) {
 
@@ -315,7 +316,7 @@ class Resolver
 
                     } else {
 
-                        $value = new ResolvedSymbol(null, ResolvedSymbol::TYPE_NULL);
+                        $value = new ResolvedSymbol(null, false, ResolvedSymbol::TYPE_NULL);
 
                     }
 
@@ -338,13 +339,13 @@ class Resolver
     /**
      * @param ResultSymbol $symbol
      * @param Symbol $value
-     * @return ResolvedSymbol[]
+     * @return ResolvedSymbol
      * @throws RuntimeException
      */
-    private function resolveSymbol(ResultSymbol $symbol, Symbol $value): array
+    private function resolveSymbol(ResultSymbol $symbol, Symbol $value): ResolvedSymbol
     {
         if ($symbol->delimiter() === null || !$symbol->delimiter()->is('|')) {
-            return [new ResolvedSymbol($symbol->asGuessedType(), false)];
+            return new ResolvedSymbol($symbol->asGuessedType(), false);
         }
 
         $functionName = trim($symbol->symbol());
@@ -353,16 +354,16 @@ class Resolver
             throw new RuntimeException("Call to unknown function: {$functionName}() in '{$symbol}'", 500);
         }
 
-        return [new ResolvedSymbol($function->call([$value->value()]), true)];
+        return new ResolvedSymbol($function->call([$value->value()]), true);
     }
 
     /**
      * @param ResultBlock $block
-     * @param Symbol $value
+     * @param Symbol $predecessorSymbol
      * @return ResolvedSymbol[]
      * @throws RuntimeException
      */
-    private function resolveSymbolBlock(ResultBlock $block, Symbol $value): array
+    private function resolveSymbolBlock(ResultBlock $block, Symbol $predecessorSymbol): array
     {
         switch (true) {
 
@@ -376,10 +377,10 @@ class Resolver
 
             // value | test()
             case SymbolHelper::isChainedUserFunctionCall($block):
-                return [new ResolvedSymbol($this->resolveSymbolFunctionBlock($block, static::PREPEND_VAR, $value), true)];
+                return [new ResolvedSymbol($this->resolveSymbolFunctionBlock($block, static::PREPEND_VAR, $predecessorSymbol), true)];
 
             // test[0] || [some, things][0]
-            case SymbolHelper::isArrayAccess($block, $value):
+            case SymbolHelper::isArrayAccess($block, $predecessorSymbol):
                 $blockResult = new ResolvedSymbol($this->resolveSymbols($block->symbols())->value(), false);
                 return $block->prefix() !== null ? [new ResolvedSymbol($block->prefix(), false), $blockResult] : [$blockResult];
 
@@ -389,7 +390,7 @@ class Resolver
 
             // test.exec()
             case SymbolHelper::isMethodCall($block):
-                return [new ResolvedSymbol($this->resolveMethodCall($block, $value), true)];
+                return [new ResolvedSymbol($this->resolveMethodCall($block, $predecessorSymbol), true)];
 
             // [test.value, 1, 'string']
             case SymbolHelper::isInlineArray($block):
