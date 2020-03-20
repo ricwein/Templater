@@ -11,10 +11,10 @@ use ricwein\Templater\Resolver\Symbol\Symbol;
 use ricwein\Templater\Resolver\Symbol\UnresolvedSymbol;
 use ricwein\Tokenizer\InputSymbols\Block;
 use ricwein\Tokenizer\InputSymbols\Delimiter;
-use ricwein\Tokenizer\Result\Result;
-use ricwein\Tokenizer\Result\ResultBlock;
-use ricwein\Tokenizer\Result\ResultSymbol;
-use ricwein\Tokenizer\Result\ResultSymbolBase;
+use ricwein\Tokenizer\Result\TokenStream;
+use ricwein\Tokenizer\Result\BlockToken;
+use ricwein\Tokenizer\Result\Token;
+use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Tokenizer;
 
 class Resolver
@@ -110,27 +110,27 @@ class Resolver
     /**
      * Takes a List of Tokens, solves depth-first blocks
      * and returns an real-datatype result.
-     * @param Result $tokens
+     * @param TokenStream $stream
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveTokenized(Result $tokens)
+    private function resolveTokenized(TokenStream $stream)
     {
-        if ($tokens->isEmpty()) {
+        if ($stream->isEmpty()) {
             return '';
         }
 
-        return $this->resolveSymbols($tokens->symbols())->value();
+        return $this->resolveTokens($stream->tokens())->value();
     }
 
     /**
      * Takes a List of Tokens, solves depth-first blocks
      * and returns a real-datatype result.
-     * @param ResultSymbolBase[] $symbols
+     * @param BaseToken[] $symbols
      * @return Symbol
      * @throws RuntimeException
      */
-    private function resolveSymbols(array $symbols): Symbol
+    private function resolveTokens(array $symbols): Symbol
     {
         // Split symbols into separated contexts:
         $current = ['delimiter' => null, 'context' => []];
@@ -244,12 +244,12 @@ class Resolver
     /**
      * Expects list of Symbols/SymbolBlocks which belong to the same context,
      * e.g. same part of an operator statement or belong to the same keypath iteration
-     * @param ResultSymbolBase[] $symbols
+     * @param BaseToken[] $symbols
      * @param Symbol $predecessorSymbol
      * @return ResolvedSymbol
      * @throws RuntimeException
      */
-    public function resolveContextSymbols(array $symbols, ?Symbol $predecessorSymbol = null): Symbol
+    public function resolveContextTokens(array $symbols, ?Symbol $predecessorSymbol = null): Symbol
     {
         if (count($symbols) < 1) {
             return new ResolvedSymbol(null, false, ResolvedSymbol::TYPE_NULL);
@@ -261,7 +261,7 @@ class Resolver
         // float as special edge case since they contain a single . char
         // but must still be interpreted as a single symbol, e.g. 3.14
         if (SymbolHelper::isFloat($symbols)) {
-            $numberString = sprintf('%s.%s', $symbols[0]->symbol(), $symbols[1]->symbol());
+            $numberString = sprintf('%s.%s', $symbols[0]->token(), $symbols[1]->token());
             return new ResolvedSymbol((float)$numberString, false, ResolvedSymbol::TYPE_FLOAT);
         }
 
@@ -279,10 +279,10 @@ class Resolver
             // resolve the current symbol
 
             /** @var ResolvedSymbol[] $resolvedSymbol */
-            if ($symbol instanceof ResultBlock) {
+            if ($symbol instanceof BlockToken) {
                 $resolvedSymbols = $this->resolveSymbolBlock($symbol, $value);
-            } else if ($symbol instanceof ResultSymbol) {
-                $resolvedSymbols = [$this->resolveSymbol($symbol, $value)];
+            } else if ($symbol instanceof Token) {
+                $resolvedSymbols = [$this->resolveToken($symbol, $value)];
             } else {
                 throw new RuntimeException(sprintf("FATAL: Invalid Symbol type: %s.", get_class($symbol)), 500);
             }
@@ -337,33 +337,33 @@ class Resolver
 
 
     /**
-     * @param ResultSymbol $symbol
+     * @param Token $token
      * @param Symbol $value
      * @return ResolvedSymbol
      * @throws RuntimeException
      */
-    private function resolveSymbol(ResultSymbol $symbol, Symbol $value): ResolvedSymbol
+    private function resolveToken(Token $token, Symbol $value): ResolvedSymbol
     {
-        if ($symbol->delimiter() === null || !$symbol->delimiter()->is('|')) {
-            return new ResolvedSymbol($symbol->asGuessedType(), false);
+        if ($token->delimiter() === null || !$token->delimiter()->is('|')) {
+            return new ResolvedSymbol($token->asGuessedType(), false);
         }
 
-        $functionName = trim($symbol->symbol());
+        $functionName = trim($token->token());
         $function = $this->getFunction($functionName);
         if ($function === null) {
-            throw new RuntimeException("Call to unknown function: {$functionName}() in '{$symbol}'", 500);
+            throw new RuntimeException("Call to unknown function: {$functionName}() in '{$token}'", 500);
         }
 
         return new ResolvedSymbol($function->call([$value->value()]), true);
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @param Symbol $predecessorSymbol
      * @return ResolvedSymbol[]
      * @throws RuntimeException
      */
-    private function resolveSymbolBlock(ResultBlock $block, Symbol $predecessorSymbol): array
+    private function resolveSymbolBlock(BlockToken $block, Symbol $predecessorSymbol): array
     {
         switch (true) {
 
@@ -381,12 +381,12 @@ class Resolver
 
             // test[0] || [some, things][0]
             case SymbolHelper::isArrayAccess($block, $predecessorSymbol):
-                $blockResult = new ResolvedSymbol($this->resolveSymbols($block->symbols())->value(), false);
+                $blockResult = new ResolvedSymbol($this->resolveTokens($block->tokens())->value(), false);
                 return $block->prefix() !== null ? [new ResolvedSymbol($block->prefix(), false), $blockResult] : [$blockResult];
 
             // ( first.name )
             case SymbolHelper::isPriorityBrace($block):
-                return [$this->resolveSymbols($block->symbols())];
+                return [$this->resolveTokens($block->tokens())];
 
             // test.exec()
             case SymbolHelper::isMethodCall($block):
@@ -411,29 +411,29 @@ class Resolver
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @return string
      * @throws RuntimeException
      */
-    private function resolveSymbolStringBlock(ResultBlock $block): string
+    private function resolveSymbolStringBlock(BlockToken $block): string
     {
         $retVal = '';
-        foreach ($block->symbols() as $symbol) {
-            if ($symbol instanceof ResultBlock) {
+        foreach ($block->tokens() as $symbol) {
+            if ($symbol instanceof BlockToken) {
                 throw new RuntimeException("String-token blocks should not be parsed, but a sub-block was return.", 500);
             }
-            $retVal .= $symbol->symbol();
+            $retVal .= $symbol->token();
         }
         return $retVal;
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @param Symbol $classSymbol
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveMethodCall(ResultBlock $block, Symbol $classSymbol)
+    private function resolveMethodCall(BlockToken $block, Symbol $classSymbol)
     {
         $class = $classSymbol->value();
         if (!$classSymbol->is(Symbol::TYPE_OBJECT)) {
@@ -448,13 +448,13 @@ class Resolver
             throw new RuntimeException(sprintf("Call to unknown method: %s::%s()", get_class($class), $block->prefix()), 500);
         }
 
-        $parameters = $this->resolveParameterList($block->symbols());
+        $parameters = $this->resolveParameterList($block->tokens());
 
         return call_user_func_array([$class, $block->prefix()], $parameters);
     }
 
     /**
-     * @param ResultSymbolBase[] $parameterSymbols
+     * @param BaseToken[] $parameterSymbols
      * @return array
      * @throws RuntimeException
      */
@@ -464,7 +464,7 @@ class Resolver
         $unresolvedSymbols = [];
         foreach ($parameterSymbols as $key => $symbol) {
             if ($symbol->delimiter() !== null && $symbol->delimiter()->is(',')) {
-                $param = $this->resolveSymbols($unresolvedSymbols)->value();
+                $param = $this->resolveTokens($unresolvedSymbols)->value();
                 if (is_string($param)) {
                     $param = stripslashes($param);
                 }
@@ -476,7 +476,7 @@ class Resolver
         }
 
         if (!empty($unresolvedSymbols)) {
-            $param = $this->resolveSymbols($unresolvedSymbols)->value();
+            $param = $this->resolveTokens($unresolvedSymbols)->value();
             if (is_string($param)) {
                 $param = stripslashes($param);
             }
@@ -487,20 +487,20 @@ class Resolver
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @param int $handleVar
      * @param null|Symbol $value
      * @return mixed
      * @throws RuntimeException
      */
-    private function resolveSymbolFunctionBlock(ResultBlock $block, int $handleVar = self::IGNORE_VAR, ?Symbol $value = null)
+    private function resolveSymbolFunctionBlock(BlockToken $block, int $handleVar = self::IGNORE_VAR, ?Symbol $value = null)
     {
         $function = $this->getFunction($block->prefix());
         if ($function === null) {
             throw new RuntimeException("Call to unknown function: {$block->prefix()}()", 500);
         }
 
-        $parameters = $this->resolveParameterList($block->symbols());
+        $parameters = $this->resolveParameterList($block->tokens());
 
         switch ($handleVar) {
 
@@ -532,41 +532,41 @@ class Resolver
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @return array
      * @throws RuntimeException
      */
-    private function buildArrayFromBlockToken(ResultBlock $block): array
+    private function buildArrayFromBlockToken(BlockToken $block): array
     {
-        return $this->resolveParameterList($block->symbols());
+        return $this->resolveParameterList($block->tokens());
     }
 
     /**
-     * @param ResultBlock $block
+     * @param BlockToken $block
      * @return array
      * @throws RuntimeException
      */
-    private function buildAssocFromBlockToken(ResultBlock $block): array
+    private function buildAssocFromBlockToken(BlockToken $block): array
     {
         $result = [];
         $key = null;
         $unresolvedSymbols = [];
 
-        foreach ($block->symbols() as $symbol) {
+        foreach ($block->tokens() as $symbol) {
 
             if ($symbol->delimiter() !== null && $symbol->delimiter()->is(':')) {
                 if ($key !== null) {
                     throw new RuntimeException("Found unexpected delimiter '{$symbol->delimiter()}' in inline assoc definition: {$block}", 500);
                 }
 
-                $key = $this->resolveSymbols($unresolvedSymbols)->value();
+                $key = $this->resolveTokens($unresolvedSymbols)->value();
                 $unresolvedSymbols = [];
             } else if ($symbol->delimiter() !== null && $symbol->delimiter()->is(',')) {
                 if ($key === null) {
                     throw new RuntimeException("Found unexpected delimiter '{$symbol->delimiter()}' in inline assoc definition: {$block}", 500);
                 }
 
-                $result[$key] = $this->resolveContextSymbols($unresolvedSymbols)->value();
+                $result[$key] = $this->resolveContextTokens($unresolvedSymbols)->value();
                 $key = null;
                 $unresolvedSymbols = [];
             }
@@ -578,7 +578,7 @@ class Resolver
             throw new RuntimeException("Unexpected end of inline assoc definition: {$block}", 500);
         }
 
-        $result[$key] = $this->resolveContextSymbols($unresolvedSymbols)->value();
+        $result[$key] = $this->resolveContextTokens($unresolvedSymbols)->value();
 
         return $result;
     }

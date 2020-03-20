@@ -4,9 +4,9 @@
 namespace ricwein\Templater\Resolver;
 
 use ricwein\Templater\Resolver\Symbol\Symbol;
-use ricwein\Tokenizer\Result\ResultBlock;
-use ricwein\Tokenizer\Result\ResultSymbol;
-use ricwein\Tokenizer\Result\ResultSymbolBase;
+use ricwein\Tokenizer\Result\BlockToken;
+use ricwein\Tokenizer\Result\Token;
+use ricwein\Tokenizer\Result\BaseToken;
 
 class SymbolHelper
 {
@@ -19,15 +19,15 @@ class SymbolHelper
         $lhs = reset($symbols);
         $rhs = end($symbols);
 
-        if (!$lhs instanceof ResultSymbol || !$rhs instanceof ResultSymbol) {
+        if (!$lhs instanceof Token || !$rhs instanceof Token) {
             return false;
         }
 
-        if (!is_numeric($lhs->symbol()) || strlen($lhs->symbol()) !== strlen((string)(int)$lhs->symbol())) {
+        if (!is_numeric($lhs->token()) || strlen($lhs->token()) !== strlen((string)(int)$lhs->token())) {
             return false;
         }
 
-        if (!is_numeric($rhs->symbol()) || strlen($rhs->symbol()) !== strlen((string)(int)$rhs->symbol())) {
+        if (!is_numeric($rhs->token()) || strlen($rhs->token()) !== strlen((string)(int)$rhs->token())) {
             return false;
         }
 
@@ -38,18 +38,18 @@ class SymbolHelper
         return true;
     }
 
-    public static function isString(ResultSymbolBase $block): bool
+    public static function isString(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
         return $block->isBlock('\'\'') || $block->isBlock('""');
     }
 
-    public static function isDirectUserFunctionCall(ResultSymbolBase $block): bool
+    public static function isDirectUserFunctionCall(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -64,9 +64,9 @@ class SymbolHelper
         return $block->prefix() !== null;
     }
 
-    public static function isChainedUserFunctionCall(ResultSymbolBase $block): bool
+    public static function isChainedUserFunctionCall(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -81,9 +81,9 @@ class SymbolHelper
         return $block->prefix() !== null;
     }
 
-    public static function isMethodCall(ResultSymbolBase $block): bool
+    public static function isMethodCall(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -98,9 +98,9 @@ class SymbolHelper
         return $block->prefix() !== null;
     }
 
-    public static function isInlineArray(ResultSymbolBase $block): bool
+    public static function isInlineArray(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -111,9 +111,9 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isInlineAssoc(ResultSymbolBase $block): bool
+    public static function isInlineAssoc(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -124,9 +124,9 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isPriorityBrace(ResultSymbolBase $block): bool
+    public static function isPriorityBrace(BaseToken $block): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 
@@ -137,9 +137,9 @@ class SymbolHelper
         return $block->prefix() === null;
     }
 
-    public static function isArrayAccess(ResultSymbolBase $block, Symbol $value = null): bool
+    public static function isArrayAccess(BaseToken $block, Symbol $value = null): bool
     {
-        if (!$block instanceof ResultBlock) {
+        if (!$block instanceof BlockToken) {
             return false;
         }
 

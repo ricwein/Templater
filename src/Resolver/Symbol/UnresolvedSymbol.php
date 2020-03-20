@@ -4,13 +4,13 @@ namespace ricwein\Templater\Resolver\Symbol;
 
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Resolver\Resolver;
-use ricwein\Tokenizer\Result\ResultSymbolBase;
+use ricwein\Tokenizer\Result\BaseToken;
 
 class UnresolvedSymbol extends Symbol
 {
     /**
      * @todo change type
-     * @var ResultSymbolBase[]
+     * @var BaseToken[]
      */
     private array $symbols = [];
 
@@ -28,7 +28,7 @@ class UnresolvedSymbol extends Symbol
 
     /**
      * @inheritDoc
-     * @param ResultSymbolBase[] $symbols
+     * @param BaseToken[] $symbols
      */
     public function __construct(array $symbols, Resolver $resolver)
     {
@@ -57,7 +57,7 @@ class UnresolvedSymbol extends Symbol
             return $this->resolvedCache;
         }
 
-        $symbol = $this->resolver->resolveContextSymbols($this->symbols, $this->predecessorSymbol);
+        $symbol = $this->resolver->resolveContextTokens($this->symbols, $this->predecessorSymbol);
         $this->resolvedCache = $symbol;
 
         return $symbol;

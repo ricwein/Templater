@@ -1,10 +1,7 @@
 <?php
 
-
 namespace ricwein\Templater\Resolver\Symbol;
 
-
-use ricwein\Templater\Exceptions\Exception;
 use ricwein\Templater\Exceptions\RuntimeException;
 
 class ResolvedSymbol extends Symbol

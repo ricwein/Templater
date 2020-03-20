@@ -48,9 +48,6 @@ class ResolverTest extends TestCase
         $functions = (new CoreFunctions(new Config()))->get();
         $resolver = new Resolver($bindings, $functions);
 
-        $this->assertSame('value1', $resolver->resolve('array[0]'));
-        return;
-
         $this->assertSame('yay', $resolver->resolve('value1'));
         $this->assertSame(true, $resolver->resolve('value2'));
         $this->assertSame('success', $resolver->resolve('nested.test'));
