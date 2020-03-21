@@ -36,7 +36,11 @@ class ForLoop extends Processor
 
             $binding = (new Resolver($bindings, $functions))->resolve($loop[static::VARIABLE_FROM]);
             if (!is_array($binding)) {
-                throw new UnexpectedValueException("The for-loop variable '{$loop[static::VARIABLE_FROM]}' must be an array, but is not.");
+                throw new UnexpectedValueException(sprintf(
+                    "The for-loop variable '%s' must be an array, but is: %s.",
+                    $loop[static::VARIABLE_FROM],
+                    is_object($binding) ? sprintf('class(%s)', get_class($binding)) : gettype($binding)
+                ), 500);
             }
 
             // unroll loop by iterating through all branches

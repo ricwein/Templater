@@ -55,7 +55,7 @@ class Bindings extends Processor
                 throw new RuntimeException(sprintf(
                     "Unable to print non-scalar value for '%s' (type: %s)",
                     trim($match[1]),
-                    is_object($current) ? sprintf('class: %s', get_class($current)) : gettype($current)
+                    is_object($current) ? sprintf('class(%s)', get_class($current)) : gettype($current)
                 ));
             }
 
