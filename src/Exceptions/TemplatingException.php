@@ -7,5 +7,4 @@ namespace ricwein\Templater\Exceptions;
  */
 class TemplatingException extends Exception
 {
-
 }
