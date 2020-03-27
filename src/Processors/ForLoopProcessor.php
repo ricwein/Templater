@@ -14,7 +14,6 @@ use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\TokenStream;
 use ricwein\Tokenizer\Tokenizer;
-use SebastianBergmann\CodeCoverage\Report\PHP;
 
 class ForLoopProcessor extends Processor
 {
@@ -91,15 +90,22 @@ class ForLoopProcessor extends Processor
 
         $loopSource = (new Resolver($statement->context->bindings, $statement->context->functions))->resolve($loopSource);
 
-        if (!is_array($loopSource) && !is_countable($loopSource)) {
+        if (!is_array($loopSource) && !is_countable($loopSource) && !is_iterable($loopSource)) {
             throw new RuntimeException(sprintf('Unable to loop above non-countable object of type: %s', is_object($loopSource) ? sprintf('class(%s)', get_class($loopSource)) : gettype($loopSource)), 500);
         }
 
         $hasAtLeastOneIteration = false;
         $index = 0;
-        $firstKey = array_key_first($loopSource);
-        $lastKey = array_key_last($loopSource);
-        $length = count($loopSource);
+
+        $firstKey = null;
+        $lastKey = null;
+        $length = null;
+
+        if (is_countable($loopSource)) {
+            $firstKey = array_key_first($loopSource);
+            $lastKey = array_key_last($loopSource);
+            $length = count($loopSource);
+        }
 
         $localStream = new TokenStream($loopContent);
 
@@ -115,8 +121,8 @@ class ForLoopProcessor extends Processor
                 array_replace_recursive($statement->context->bindings, $loopParameters, ['loop' => [
                     'index0' => $index++,
                     'index' => $index,
-                    'first' => $key === $firstKey,
-                    'last' => $key === $lastKey,
+                    'first' => $firstKey !== null ? ($key === $firstKey) : null,
+                    'last' => $firstKey !== null ? ($key === $lastKey) : null,
                     'length' => $length,
                 ]]),
                 $statement->context->functions,
@@ -132,7 +138,7 @@ class ForLoopProcessor extends Processor
 
             $localStream->reset();
             $loopIteration = $this->templater->resolveStream($localStream, $loopContext);
-            $loopIterations[] = implode('', $loopIteration) . PHP_EOL;
+            $loopIterations[] = implode('', $loopIteration);
 
             $hasAtLeastOneIteration = true;
         }
@@ -140,11 +146,11 @@ class ForLoopProcessor extends Processor
         if (!$hasAtLeastOneIteration && $elseContent !== null) {
             $localStream = new TokenStream($elseContent);
             $elseLines = $this->templater->resolveStream($localStream, $statement->context);
-            return implode('', $elseLines) . PHP_EOL;
+            return implode('', $elseLines);
         }
 
 
-        return PHP_EOL . implode('', $loopIterations);
+        return implode('', $loopIterations);
     }
 
     /**

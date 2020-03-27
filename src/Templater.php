@@ -169,7 +169,8 @@ class Templater
                 new Block('{{', '}}', false, true), // variable or function call
                 new Block('{%', '%}', false, true), // statement
             ], [
-                'maxDepth' => 0
+                'maxDepth' => 0,
+                'disableAutoTrim' => true,
             ]);
 
             $templateContent = $context->template()->read();
@@ -183,7 +184,10 @@ class Templater
             throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $line);
         }
 
-        return implode('', $blocks);
+        return implode('', array_map(
+            fn(string $in): string => rtrim($in, PHP_EOL),
+            $blocks
+        ));
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Statement;
+use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\Token;
@@ -89,6 +90,18 @@ class IfProcessor extends Processor
         }
 
         // process actual if-statements
+        return $this->evaluateBranches($statement, $branches);
+    }
+
+    /**
+     * @param Statement $statement
+     * @param array $branches
+     * @return string
+     * @throws RuntimeException
+     * @throws RenderingException
+     */
+    private function evaluateBranches(Statement $statement, array $branches): string
+    {
         foreach ($branches as $branch) {
             switch ($branch['type']) {
 
@@ -99,18 +112,17 @@ class IfProcessor extends Processor
                     if ($statement->context->resolver()->resolve($conditionString)) {
                         $localStream = new TokenStream($branch['blocks']);
                         $resolved = $this->templater->resolveStream($localStream, $statement->context);
-                        return implode('', $resolved) . PHP_EOL;
+                        return implode('', $resolved);
                     }
                     break;
 
                 case 'else':
                     $localStream = new TokenStream($branch['blocks']);
                     $resolved = $this->templater->resolveStream($localStream, $statement->context);
-                    return implode('', $resolved) . PHP_EOL;
+                    return implode('', $resolved);
             }
         }
 
         return '';
     }
-
 }

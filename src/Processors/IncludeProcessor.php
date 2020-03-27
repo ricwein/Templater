@@ -66,6 +66,6 @@ class IncludeProcessor extends Processor
             $statement->context->environment
         );
 
-        return PHP_EOL . $this->templater->renderFile($context);
+        return $this->templater->renderFile($context);
     }
 }
