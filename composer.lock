@@ -359,16 +359,16 @@
         },
         {
             "name": "ricwein/tokenizer",
-            "version": "1.2.2",
+            "version": "1.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ricwein/Tokenizer.git",
-                "reference": "29d32ce5b340e5516e775822e67e649063ed287d"
+                "reference": "e9f709c55df011c0846837b82e81dce59a549947"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/29d32ce5b340e5516e775822e67e649063ed287d",
-                "reference": "29d32ce5b340e5516e775822e67e649063ed287d",
+                "url": "https://api.github.com/repos/ricwein/Tokenizer/zipball/e9f709c55df011c0846837b82e81dce59a549947",
+                "reference": "e9f709c55df011c0846837b82e81dce59a549947",
                 "shasum": ""
             },
             "require": {
@@ -395,7 +395,7 @@
                 }
             ],
             "description": "configurable string tokenizer",
-            "time": "2020-03-27T11:55:28+00:00"
+            "time": "2020-03-27T13:47:15+00:00"
         },
         {
             "name": "scssphp/scssphp",

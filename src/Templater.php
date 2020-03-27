@@ -164,36 +164,18 @@ class Templater
     {
         $line = 0;
         try {
-            $blocks = [];
-
             $tokenizer = new Tokenizer([], [
                 new Block('{#', '#}', false, true), // comment
                 new Block('{{', '}}', false, true), // variable or function call
                 new Block('{%', '%}', false, true), // statement
-            ], 0);
+            ], [
+                'maxDepth' => 0
+            ]);
 
             $templateContent = $context->template()->read();
             $tokenStream = $tokenizer->tokenize($templateContent);
 
-            while ($token = $tokenStream->next()) {
-
-                // expose current line number for better exception messages
-                $line = $token->line();
-
-                if ($token instanceof Token) {
-
-                    $blocks[] = (string)$token;
-
-                } elseif ($token instanceof BlockToken) {
-
-                    $blocks = array_merge(
-                        $blocks,
-                        $this->resolveToken($token, $context, $tokenStream)
-                    );
-
-                }
-
-            }
+            $blocks = $this->resolveStream($tokenStream, $context, $line);
 
         } catch (RenderingException $exception) {
             throw $exception;
@@ -202,6 +184,34 @@ class Templater
         }
 
         return implode('', $blocks);
+    }
+
+    /**
+     * @param TokenStream $stream
+     * @param Context $context
+     * @param int|null &$line
+     * @return array
+     * @throws RenderingException
+     */
+    public function resolveStream(TokenStream $stream, Context $context, ?int &$line = null): array
+    {
+        $blocks = [];
+
+        while ($token = $stream->next()) {
+
+            if ($line !== null) {
+                // expose current line number for better exception messages
+                $line = $token->line();
+            }
+
+            if ($token instanceof Token) {
+                $blocks[] = $token->content();
+            } elseif ($token instanceof BlockToken) {
+                $blocks = array_merge($blocks, $this->resolveToken($token, $context, $stream));
+            }
+        }
+
+        return $blocks;
     }
 
     /**
@@ -252,27 +262,6 @@ class Templater
             throw $exception;
         } catch (Exception $exception) {
             throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $token->line());
-        }
-
-        return $blocks;
-    }
-
-    /**
-     * @param TokenStream $stream
-     * @param Context $context
-     * @return array
-     * @throws RenderingException
-     */
-    public function resolveStream(TokenStream $stream, Context $context): array
-    {
-        $blocks = [];
-
-        while ($line = $stream->next()) {
-            if ($line instanceof Token) {
-                $blocks[] = $line->content();
-            } elseif ($line instanceof BlockToken) {
-                $blocks = array_merge($blocks, $this->resolveToken($line, $context, $stream));
-            }
         }
 
         return $blocks;

@@ -22,7 +22,7 @@ class IfProcessor extends Processor
 
     protected function forkKeywords(): ?array
     {
-        return ['elseif', ['else', 'if']];
+        return ['elseif', 'else'];
     }
 
     /**
@@ -49,37 +49,38 @@ class IfProcessor extends Processor
             } elseif ($token instanceof BlockToken) {
 
                 $blockStatement = new Statement($token, $statement->context);
+                switch (true) {
 
-                if ($token->block()->is('{%', '%}') && $this->isQualifiedFork($blockStatement)) {
+                    case !$token->block()->is('{%', '%}'):
+                    default:
+                        $current['blocks'][] = $token;
+                        break;
 
                     // branch elseif-fork
-                    $branches[] = $current;
-                    $current = [
-                        'type' => 'elseif',
-                        'condition' => $blockStatement->remainingTokens(),
-                        'blocks' => [],
-                    ];
-
-                } else if ($token->block()->is('{%', '%}') && $blockStatement->beginsWith(['else'])) {
+                    case $blockStatement->beginsWith(['elseif']):
+                        $branches[] = $current;
+                        $current = [
+                            'type' => 'elseif',
+                            'condition' => $blockStatement->remainingTokens(),
+                            'blocks' => [],
+                        ];
+                        break;
 
                     // branch else-fork
-                    $branches[] = $current;
-                    $current = [
-                        'type' => 'else',
-                        'blocks' => [],
-                    ];
+                    case $blockStatement->beginsWith(['else']):
+                        $branches[] = $current;
+                        $current = [
+                            'type' => 'else',
+                            'blocks' => [],
+                        ];
+                        break;
 
-
-                } else if ($token->block()->is('{%', '%}') && $this->isQualifiedEnd($blockStatement)) {
-
-                    $branches[] = $current;
-                    $isClosed = true;
-                    break;
-
-                } else {
-                    $current['blocks'][] = $token;
+                    // endif
+                    case $this->isQualifiedEnd($blockStatement):
+                        $branches[] = $current;
+                        $isClosed = true;
+                        break 2;
                 }
-
             }
         }
 

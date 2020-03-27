@@ -14,6 +14,7 @@ use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\TokenStream;
 use ricwein\Tokenizer\Tokenizer;
+use SebastianBergmann\CodeCoverage\Report\PHP;
 
 class ForLoopProcessor extends Processor
 {
@@ -36,6 +37,10 @@ class ForLoopProcessor extends Processor
     {
         /** @var BaseToken[] $loopContent */
         $loopContent = [];
+
+        /** @var BaseToken[]|null $elseContent */
+        $elseContent = null;
+
         $isClosedLoop = false;
         $loopHeadString = implode('', $statement->remainingTokens());
 
@@ -44,18 +49,35 @@ class ForLoopProcessor extends Processor
 
             if ($token instanceof Token) {
 
-                $loopContent[] = $token;
-
-            } elseif ($token instanceof BlockToken) {
-
-                $blockStatement = new Statement($token, $statement->context);
-                if ($token->block()->is('{%', '%}') && $this->isQualifiedEnd($blockStatement)) {
-                    $isClosedLoop = true;
-                    break;
+                if ($elseContent !== null) {
+                    $elseContent[] = $token;
                 } else {
                     $loopContent[] = $token;
                 }
 
+            } elseif ($token instanceof BlockToken) {
+
+                $blockStatement = new Statement($token, $statement->context);
+                switch (true) {
+
+                    case !$token->block()->is('{%', '%}'):
+                    default:
+                        if ($elseContent !== null) {
+                            $elseContent[] = $token;
+                        } else {
+                            $loopContent[] = $token;
+                        }
+                        break;
+
+                    case $blockStatement->beginsWith(['else']):
+                        $elseContent = [];
+                        break;
+
+                    case $this->isQualifiedEnd($blockStatement):
+                        $isClosedLoop = true;
+                        break 2;
+
+                }
             }
         }
 
@@ -69,17 +91,17 @@ class ForLoopProcessor extends Processor
 
         $loopSource = (new Resolver($statement->context->bindings, $statement->context->functions))->resolve($loopSource);
 
-        if (!is_array($loopSource) && !is_iterable($loopSource) && !is_countable($loopSource)) {
+        if (!is_array($loopSource) && !is_countable($loopSource)) {
             throw new RuntimeException(sprintf('Unable to loop above non-countable object of type: %s', is_object($loopSource) ? sprintf('class(%s)', get_class($loopSource)) : gettype($loopSource)), 500);
         }
 
+        $hasAtLeastOneIteration = false;
         $index = 0;
         $firstKey = array_key_first($loopSource);
         $lastKey = array_key_last($loopSource);
         $length = count($loopSource);
 
         $localStream = new TokenStream($loopContent);
-
 
         foreach ($loopSource as $key => $value) {
 
@@ -111,7 +133,16 @@ class ForLoopProcessor extends Processor
             $localStream->reset();
             $loopIteration = $this->templater->resolveStream($localStream, $loopContext);
             $loopIterations[] = implode('', $loopIteration) . PHP_EOL;
+
+            $hasAtLeastOneIteration = true;
         }
+
+        if (!$hasAtLeastOneIteration && $elseContent !== null) {
+            $localStream = new TokenStream($elseContent);
+            $elseLines = $this->templater->resolveStream($localStream, $statement->context);
+            return implode('', $elseLines) . PHP_EOL;
+        }
+
 
         return PHP_EOL . implode('', $loopIterations);
     }
