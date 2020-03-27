@@ -74,4 +74,9 @@ class Config
 
         throw new InvalidArgumentException("Templater Config property for key '{$name}' not found", 500);
     }
+
+    public function asArray(): array
+    {
+        return get_object_vars($this);
+    }
 }

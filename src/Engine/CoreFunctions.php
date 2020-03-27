@@ -36,6 +36,7 @@ class CoreFunctions
         $exposeFunctions = [
             'dump' => [$this, 'dump'],
             'constant' => [$this, 'mapConstant'],
+            'not' => [$this, 'not'],
 
             'abs' => 'abs',
             'round' => [$this, 'round'],
@@ -362,5 +363,10 @@ class CoreFunctions
     public function isIterable($value): bool
     {
         return is_iterable($value);
+    }
+
+    public function not($value): bool
+    {
+        return !$value;
     }
 }

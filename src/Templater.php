@@ -92,6 +92,7 @@ class Templater
             new Processors\BlockProcessor($this),
             new Processors\IncludeProcessor($this),
             new Processors\IfProcessor($this),
+            new Processors\ForLoopProcessor($this),
         ];
     }
 
@@ -132,11 +133,13 @@ class Templater
 
             $content = $this->renderFile(new Context(
                 $templateFile,
-                array_replace_recursive($bindings, ['template' => ['file' => $templateFile]]),
+                array_replace_recursive($bindings, ['template' => ['file' => $templateFile], 'config' => $this->config->asArray()]),
                 $this->functions,
                 [],
             ));
 
+        } catch (RenderingException $exception) {
+            throw $exception;
         } catch (Exception $exception) {
             throw new TemplatingException(
                 "Error rendering Template: {$templateFile->path()->filepath}",
@@ -164,9 +167,9 @@ class Templater
             $blocks = [];
 
             $tokenizer = new Tokenizer([], [
-                new Block('{#', '#}', false), // comment
-                new Block('{{', '}}', false), // variable or function call
-                new Block('{%', '%}', false), // statement
+                new Block('{#', '#}', false, true), // comment
+                new Block('{{', '}}', false, true), // variable or function call
+                new Block('{%', '%}', false, true), // statement
             ], 0);
 
             $templateContent = $context->template()->read();
@@ -183,7 +186,10 @@ class Templater
 
                 } elseif ($token instanceof BlockToken) {
 
-                    $blocks = array_merge($blocks, $this->resolveToken($token, $context, $tokenStream));
+                    $blocks = array_merge(
+                        $blocks,
+                        $this->resolveToken($token, $context, $tokenStream)
+                    );
 
                 }
 
@@ -209,10 +215,6 @@ class Templater
     {
         $blocks = [];
 
-        if ($token->prefix() !== null) {
-            $blocks[] = $token->prefix();
-        }
-
         // handle block-types
         $key = trim($token->content());
 
@@ -220,13 +222,12 @@ class Templater
 
             if ($token->block()->is('{{', '}}')) {
 
-
                 $value = $context->resolver()->resolve($key);
                 $blocks[] = $this->asPrintable($value, $key);
 
             } elseif ($token->block()->is('{#', '#}') && !$this->config->stripComments) {
 
-                $blocks[] = sprintf("<!-- %s -->", $key);
+                $blocks[] = sprintf("%s<!-- %s -->", PHP_EOL, $key);
 
             } elseif ($token->block()->is('{%', '%}')) {
 
@@ -253,8 +254,25 @@ class Templater
             throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $token->line());
         }
 
-        if ($token->suffix() !== null) {
-            $blocks[] = $token->suffix();
+        return $blocks;
+    }
+
+    /**
+     * @param TokenStream $stream
+     * @param Context $context
+     * @return array
+     * @throws RenderingException
+     */
+    public function resolveStream(TokenStream $stream, Context $context): array
+    {
+        $blocks = [];
+
+        while ($line = $stream->next()) {
+            if ($line instanceof Token) {
+                $blocks[] = $line->content();
+            } elseif ($line instanceof BlockToken) {
+                $blocks = array_merge($blocks, $this->resolveToken($line, $context, $stream));
+            }
         }
 
         return $blocks;
@@ -273,6 +291,8 @@ class Templater
             return '';
         } elseif (is_string($value)) {
             return trim($value);
+        } elseif (is_bool($value)) {
+            return $value ? 'true' : 'false';
         } elseif (is_scalar($value)) {
             return $value;
         } elseif (is_object($value) && method_exists($value, '__toString')) {
@@ -281,9 +301,10 @@ class Templater
 
         if ($this->config->debug) {
             throw new RuntimeException(sprintf(
-                "Unable to print non-scalar value for '%s' (type: %s)",
+                "Unable to print non-scalar value for '%s' (type: %s | is: %s)",
                 $path,
-                is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value)
+                is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value),
+                str_replace([PHP_EOL, ' '], '', print_r($value, true)),
             ), 500);
         }
 

@@ -26,6 +26,11 @@ class Statement
         return $this->token->content();
     }
 
+    public function line(): int
+    {
+        return $this->token->line();
+    }
+
     public function contentTokenStream(): TokenStream
     {
         if ($this->stream !== null) {
@@ -56,7 +61,7 @@ class Statement
 
             if (is_array($symbol)) {
                 foreach (array_values($symbol) as $key => $symbolWord) {
-                    if (!isset($tokens[$key]) || !$tokens[$key] instanceof Token || !$tokens[$key]->token() !== $symbolWord) {
+                    if (!isset($tokens[$key]) || !$tokens[$key] instanceof Token || $tokens[$key]->token() !== $symbolWord) {
                         continue 2;
                     }
                 }

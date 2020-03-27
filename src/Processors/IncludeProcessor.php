@@ -1,14 +1,13 @@
 <?php
 
-
 namespace ricwein\Templater\Processors;
-
 
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
 use ricwein\FileSystem\Exceptions\ConstraintsException;
 use ricwein\FileSystem\Exceptions\Exception;
 use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException;
+use ricwein\FileSystem\File;
 use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RuntimeException;
@@ -17,6 +16,11 @@ use ricwein\Tokenizer\Result\TokenStream;
 
 class IncludeProcessor extends Processor
 {
+    protected function startKeyword(): string
+    {
+        return 'include';
+    }
+
     /**
      * @inheritDoc
      * @param Statement $statement
@@ -44,9 +48,15 @@ class IncludeProcessor extends Processor
         $filename = end($words);
         $filename = $statement->context->resolver()->resolve($filename);
 
-        $file = $this->templater->getRelativeTemplateFile($statement->context->template()->directory(), $filename);
+        /** @var File $file */
+        if (is_string($filename)) {
+            $file = $this->templater->getRelativeTemplateFile($statement->context->template()->directory(), $filename);
+        } else if ($filename instanceof File) {
+            $file = $filename;
+        }
+
         if ($file === null) {
-            throw new RuntimeException(sprintf('Include of file %s failed: File Not Found', $filename), 404);
+            throw new RuntimeException(sprintf('Include of file "%s" failed: File Not Found', $filename), 404);
         }
 
         $context = new Context(
@@ -56,12 +66,6 @@ class IncludeProcessor extends Processor
             $statement->context->environment
         );
 
-        return $this->templater->renderFile($context);
+        return PHP_EOL . $this->templater->renderFile($context);
     }
-
-    protected function startKeyword(): string
-    {
-        return 'include';
-    }
-
 }
