@@ -13,7 +13,7 @@ use ricwein\FileSystem\Exceptions\ConstraintsException;
 use ricwein\FileSystem\Exceptions\Exception as FileSystemException;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException;
-use ricwein\FileSystem\Exceptions\UnexpectedValueException;
+use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Storage;
@@ -24,8 +24,10 @@ use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
+use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors;
 use ricwein\Tokenizer\InputSymbols\Block;
+use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\TokenStream;
@@ -43,9 +45,10 @@ class Templater
     protected ?ExtendedCacheItemPoolInterface $cache = null;
 
     private array $functions = [];
+    private Tokenizer $tokenizer;
 
     /**
-     * @var Processors\Processor[]
+     * @var string[]
      */
     private array $processors = [];
 
@@ -56,7 +59,7 @@ class Templater
      * @throws FileNotFoundException
      * @throws FileSystemRuntimeException
      * @throws RuntimeException
-     * @throws UnexpectedValueException
+     * @throws FileSystemUnexpectedValueException
      */
     public function __construct(Config $config, ?ExtendedCacheItemPoolInterface $cache = null)
     {
@@ -89,11 +92,20 @@ class Templater
 
         // setup core processors
         $this->processors = [
-            new Processors\BlockProcessor($this),
-            new Processors\IncludeProcessor($this),
-            new Processors\IfProcessor($this),
-            new Processors\ForLoopProcessor($this),
+            Processors\BlockProcessor::class,
+            Processors\IncludeProcessor::class,
+            Processors\IfProcessor::class,
+            Processors\ForLoopProcessor::class,
         ];
+
+        $this->tokenizer = new Tokenizer([], [
+            new Block('{#', '#}', false, true), // comment
+            new Block('{{', '}}', false, true), // variable or function call
+            new Block('{%', '%}', false, true), // statement
+        ], [
+            'maxDepth' => 0,
+            'disableAutoTrim' => true,
+        ]);
     }
 
     public function addFunction(BaseFunction $function): self
@@ -102,8 +114,19 @@ class Templater
         return $this;
     }
 
-    public function addProcessor(Processors\Processor $processor): self
+    /**
+     * @param string $processor
+     * @return $this
+     * @throws RuntimeException
+     */
+    public function addProcessor(string $processor): self
     {
+        if (!is_subclass_of($processor, Processors\Processor::class, true)) {
+            throw new RuntimeException(sprintf(
+                "Processors must extend the class '%s', but %s doesn't",
+                Processors\Processor::class, $processor
+            ), 500);
+        }
         $this->processors[] = $processor;
         return $this;
     }
@@ -130,13 +153,13 @@ class Templater
         }
 
         try {
-
-            $content = $this->renderFile(new Context(
+            $context = new Context(
                 $templateFile,
-                array_replace_recursive($bindings, ['template' => ['file' => $templateFile], 'config' => $this->config->asArray()]),
+                $bindings,
                 $this->functions,
-                [],
-            ));
+            );
+
+            $content = $this->renderFile($context);
 
         } catch (RenderingException $exception) {
             throw $exception;
@@ -149,7 +172,7 @@ class Templater
         }
 
         if ($filter !== null) {
-            $content = call_user_func_array($filter, [$content]);
+            $content = call_user_func_array($filter, [$content, $this]);
         }
 
         return $content;
@@ -162,104 +185,145 @@ class Templater
      */
     public function renderFile(Context $context): string
     {
+        // add current global config to context-bindings to allow usage in templates
+        $context->bindings = array_replace_recursive($context->bindings, ['config' => $this->config->asArray()]);
         $line = 0;
+
         try {
-            $tokenizer = new Tokenizer([], [
-                new Block('{#', '#}', false, true), // comment
-                new Block('{{', '}}', false, true), // variable or function call
-                new Block('{%', '%}', false, true), // statement
-            ], [
-                'maxDepth' => 0,
-                'disableAutoTrim' => true,
-            ]);
-
             $templateContent = $context->template()->read();
-            $tokenStream = $tokenizer->tokenize($templateContent);
+            $tokenStream = $this->tokenizer->tokenize($templateContent);
 
-            $blocks = $this->resolveStream($tokenStream, $context, $line);
+            $lines = $this->resolveStream($tokenStream, $context, $line);
+            return implode('', $lines);
 
         } catch (RenderingException $exception) {
             throw $exception;
         } catch (Exception $exception) {
             throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $line);
         }
-
-        return implode('', array_map(
-            fn(string $in): string => rtrim($in, PHP_EOL),
-            $blocks
-        ));
     }
 
     /**
+     * processes a whole token-stream (complete template file)
      * @param TokenStream $stream
      * @param Context $context
      * @param int|null &$line
-     * @return array
+     * @return string[]
      * @throws RenderingException
      */
-    public function resolveStream(TokenStream $stream, Context $context, ?int &$line = null): array
+    private function resolveStream(TokenStream $stream, Context $context, ?int &$line = null): array
     {
-        $blocks = [];
+        $lines = [];
 
         while ($token = $stream->next()) {
 
+            // expose current line number for better exception messages
             if ($line !== null) {
-                // expose current line number for better exception messages
                 $line = $token->line();
             }
 
             if ($token instanceof Token) {
-                $blocks[] = $token->content();
+                $lines[] = $token->content();
             } elseif ($token instanceof BlockToken) {
-                $blocks = array_merge($blocks, $this->resolveToken($token, $context, $stream));
+                $lines = array_merge($lines, $this->resolveLineTokens($token, $context, $stream));
             }
         }
 
-        return $blocks;
+        return $lines;
     }
 
     /**
+     * resolve a collection of symbols, mostly a subset of a template,
+     * only accepts Tokens, simple BlockTokens (comments, vars) and pre-parsed Processors
+     * @param Processors\Processor[]|BaseToken[] $symbols
+     * @param Context $context
+     * @return array
+     * @throws RenderingException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
+    public function resolveSymbols(array $symbols, Context $context): array
+    {
+        $lines = [];
+
+        foreach ($symbols as $symbol) {
+
+            if ($symbol instanceof Processors\Processor) {
+
+                $lines = array_merge($lines, $symbol->process($context));
+
+            } elseif ($symbol instanceof Token) {
+
+                $lines[] = $symbol->content();
+
+            } elseif ($symbol instanceof BlockToken && null !== $line = $this->resolveToken($symbol, $context)) {
+
+                $lines[] = $line;
+
+            } else {
+
+                throw new UnexpectedValueException(sprintf(
+                    "Unexpected Symbol of type: %s.",
+                    is_object($symbol) ? sprintf('class (%s)', get_class($symbol)) : gettype($symbol),
+                ), 500);
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * processes a single simple token (comment or var)
      * @param BlockToken $token
      * @param Context $context
+     * @return string|null
+     * @throws RuntimeException
+     */
+    private function resolveToken(BlockToken $token, Context $context): ?string
+    {
+        $content = $token->content();
+
+        if ($token->block()->is('{{', '}}')) {
+
+            $value = $context->resolver()->resolve($content);
+            return $this->asPrintable($value, $content);
+
+        }
+
+        if ($token->block()->is('{#', '#}')) {
+
+            if (!$this->config->stripComments) {
+                return sprintf("<!-- %s -->", $content);
+            }
+            return '';
+
+        }
+
+        return null;
+    }
+
+    /**
+     * @param BlockToken|Processors\Processor $token
+     * @param Context $context
      * @param TokenStream $stream
-     * @return array|null
+     * @return string[]
      * @throws RenderingException
      */
-    public function resolveToken(BlockToken $token, Context $context, TokenStream $stream): array
+    private function resolveLineTokens(BlockToken $token, Context $context, TokenStream $stream): array
     {
-        $blocks = [];
-
-        // handle block-types
-        $key = trim($token->content());
+        /** @var string[] $blocks */
+        $lines = [];
 
         try {
 
-            if ($token->block()->is('{{', '}}')) {
+            if (null !== $line = $this->resolveToken($token, $context)) {
 
-                $value = $context->resolver()->resolve($key);
-                $blocks[] = $this->asPrintable($value, $key);
-
-            } elseif ($token->block()->is('{#', '#}') && !$this->config->stripComments) {
-
-                $blocks[] = sprintf("%s<!-- %s -->", PHP_EOL, $key);
+                $lines[] = $line;
 
             } elseif ($token->block()->is('{%', '%}')) {
 
                 $statement = new Statement($token, $context);
-
-                $matched = false;
-
-                foreach ($this->processors as $processor) {
-                    if ($processor->isQualified($statement)) {
-                        $matched = true;
-                        $blocks[] = $processor->process($statement, $stream);
-                        break;
-                    }
-                }
-
-                if (!$matched) {
-                    throw new RenderingException(sprintf("Found unsupported statement with keyword: %s", trim($token->content())), 500, null, $context->template(), $token->line());
-                }
+                $lines = array_merge($lines, $this->resolveProcessorToken($statement, $stream)->process($context));
             }
 
         } catch (RenderingException $exception) {
@@ -268,7 +332,29 @@ class Templater
             throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $token->line());
         }
 
-        return $blocks;
+        return $lines;
+    }
+
+    /**
+     * @param Statement $statement
+     * @param TokenStream $stream
+     * @return Processors\Processor
+     * @throws RenderingException
+     * @throws RuntimeException
+     */
+    public function resolveProcessorToken(Statement $statement, TokenStream $stream): Processors\Processor
+    {
+        foreach ($this->processors as $processorClassName) {
+            if ($processorClassName::isQualified($statement)) {
+
+                /** @var Processors\Processor $processor */
+                $processor = new $processorClassName($this);
+
+                return $processor->parse($statement, $stream);
+            }
+        }
+
+        throw new RuntimeException(sprintf("Found unsupported processor statement: %s", implode(' ', $statement->keywordTokens())), 500);
     }
 
     /**
@@ -283,7 +369,7 @@ class Templater
         if ($value === null) {
             return '';
         } elseif (is_string($value)) {
-            return trim($value);
+            return $value;
         } elseif (is_bool($value)) {
             return $value ? 'true' : 'false';
         } elseif (is_scalar($value)) {
@@ -293,11 +379,11 @@ class Templater
         }
 
         if ($this->config->debug) {
+            $type = is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value);
+            $hrValue = str_replace([PHP_EOL, ' '], '', print_r($value, true));
             throw new RuntimeException(sprintf(
                 "Unable to print non-scalar value for '%s' (type: %s | is: %s)",
-                $path,
-                is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value),
-                str_replace([PHP_EOL, ' '], '', print_r($value, true)),
+                $path, $type, $hrValue,
             ), 500);
         }
 

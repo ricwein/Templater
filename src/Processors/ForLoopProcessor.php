@@ -3,27 +3,33 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Context;
-use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\Processors\Symbols\BlockSymbols;
+use ricwein\Templater\Processors\Symbols\BranchSymbols;
 use ricwein\Templater\Resolver\Resolver;
 use ricwein\Tokenizer\InputSymbols\Block;
 use ricwein\Tokenizer\InputSymbols\Delimiter;
 use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\Token;
-use ricwein\Tokenizer\Result\TokenStream;
 use ricwein\Tokenizer\Tokenizer;
 
 class ForLoopProcessor extends Processor
 {
 
-    protected function startKeyword(): string
+    protected static function startKeyword(): string
     {
         return 'for';
     }
 
-    protected function endKeyword(): ?string
+    protected static function forkKeywords(): ?array
+    {
+        return ['else'];
+    }
+
+    protected static function endKeyword(): ?string
     {
         return 'endfor';
     }
@@ -31,64 +37,28 @@ class ForLoopProcessor extends Processor
     /**
      * @inheritDoc
      * @throws RuntimeException
+     * @throws UnexpectedValueException
      */
-    public function process(Statement $statement, TokenStream $stream): string
+    public function process(Context $context): array
     {
-        /** @var BaseToken[] $loopContent */
-        $loopContent = [];
-
-        /** @var BaseToken[]|null $elseContent */
-        $elseContent = null;
-
-        $isClosedLoop = false;
-        $loopHeadString = implode('', $statement->remainingTokens());
-
-        // search endfor statement and save loop-content tokens for later processing
-        while ($token = $stream->next()) {
-
-            if ($token instanceof Token) {
-
-                if ($elseContent !== null) {
-                    $elseContent[] = $token;
-                } else {
-                    $loopContent[] = $token;
-                }
-
-            } elseif ($token instanceof BlockToken) {
-
-                $blockStatement = new Statement($token, $statement->context);
-                switch (true) {
-
-                    case !$token->block()->is('{%', '%}'):
-                    default:
-                        if ($elseContent !== null) {
-                            $elseContent[] = $token;
-                        } else {
-                            $loopContent[] = $token;
-                        }
-                        break;
-
-                    case $blockStatement->beginsWith(['else']):
-                        $elseContent = [];
-                        break;
-
-                    case $this->isQualifiedEnd($blockStatement):
-                        $isClosedLoop = true;
-                        break 2;
-
-                }
-            }
+        /** @var BlockSymbols $forBlock */
+        /** @var BlockSymbols|null $elseBlock */
+        if ($this->symbols instanceof BlockSymbols) {
+            $forBlock = $this->symbols;
+            $elseBlock = null;
+        } elseif ($this->symbols instanceof BranchSymbols) {
+            $forBlock = $this->symbols->branch(0);
+            $elseBlock = $this->symbols->branch(1);
+        } else {
+            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
-        if (!$isClosedLoop) {
-            throw new RuntimeException("Unexpected end of template. Missing '{$this->endKeyword()}' tag.", 500);
-        }
-
-        // process actual for-loop
+        // pre-process loop conditions and resolve variables
         $loopIterations = [];
-        [$loopKeyName, $loopValueName, $loopSource, $loopCondition] = $this->parseLoopHead($loopHeadString, $statement);
-
-        $loopSource = (new Resolver($statement->context->bindings, $statement->context->functions))->resolve($loopSource);
+        $loopHeadString = implode('', $forBlock->headTokens());
+        $line = $forBlock->headTokens()[0]->line();
+        [$loopKeyName, $loopValueName, $loopSource, $loopCondition] = $this->parseLoopHead($loopHeadString, $context, $line);
+        $loopSource = $context->resolver()->resolve($loopSource);
 
         if (!is_array($loopSource) && !is_countable($loopSource) && !is_iterable($loopSource)) {
             throw new RuntimeException(sprintf('Unable to loop above non-countable object of type: %s', is_object($loopSource) ? sprintf('class(%s)', get_class($loopSource)) : gettype($loopSource)), 500);
@@ -107,26 +77,25 @@ class ForLoopProcessor extends Processor
             $length = count($loopSource);
         }
 
-        $localStream = new TokenStream($loopContent);
-
         foreach ($loopSource as $key => $value) {
 
+            // build custom loop-context with loop-scope only variables
             $loopParameters = [$loopValueName => $value];
             if ($loopKeyName !== null) {
                 $loopParameters[$loopKeyName] = $key;
             }
 
             $loopContext = new Context(
-                $statement->context->template(),
-                array_replace_recursive($statement->context->bindings, $loopParameters, ['loop' => [
+                $context->template(),
+                array_replace_recursive($context->bindings, $loopParameters, ['loop' => [
                     'index0' => $index++,
                     'index' => $index,
                     'first' => $firstKey !== null ? ($key === $firstKey) : null,
                     'last' => $firstKey !== null ? ($key === $lastKey) : null,
                     'length' => $length,
                 ]]),
-                $statement->context->functions,
-                $statement->context->environment
+                $context->functions,
+                $context->environment
             );
 
             if ($loopCondition !== null) {
@@ -136,30 +105,27 @@ class ForLoopProcessor extends Processor
                 }
             }
 
-            $localStream->reset();
-            $loopIteration = $this->templater->resolveStream($localStream, $loopContext);
+            $loopIteration = $this->templater->resolveSymbols($forBlock->content, $loopContext);
             $loopIterations[] = implode('', $loopIteration);
 
             $hasAtLeastOneIteration = true;
         }
 
-        if (!$hasAtLeastOneIteration && $elseContent !== null) {
-            $localStream = new TokenStream($elseContent);
-            $elseLines = $this->templater->resolveStream($localStream, $statement->context);
-            return implode('', $elseLines);
+        if (!$hasAtLeastOneIteration && $elseBlock !== null) {
+            return $this->templater->resolveSymbols($elseBlock->content, $context);
         }
 
-
-        return implode('', $loopIterations);
+        return $loopIterations;
     }
 
     /**
      * @param string $loopHeadString
-     * @param Statement $statement
+     * @param Context $context
+     * @param int $line
      * @return array
      * @throws RenderingException
      */
-    private function parseLoopHead(string $loopHeadString, Statement $statement): array
+    private function parseLoopHead(string $loopHeadString, Context $context, int $line): array
     {
         $inDelimiter = new Delimiter(' in ');
         $ifDelimiter = new Delimiter(' if ');
@@ -208,8 +174,8 @@ class ForLoopProcessor extends Processor
                         sprintf('Invalid key/key-value definition in "for-in" loop head. Got %d parameter(s): %s', count($current), implode('', array_map('trim', $current))),
                         500,
                         null,
-                        $statement->context->template(),
-                        $statement->line()
+                        $context->template(),
+                        $line
                     );
                 }
             }

@@ -9,48 +9,44 @@ use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException
 use ricwein\FileSystem\Exceptions\UnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\Templater\Engine\Context;
-use ricwein\Templater\Engine\Statement;
+use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Processors\Symbols\HeadOnlySymbols;
 use ricwein\Tokenizer\Result\Token;
-use ricwein\Tokenizer\Result\TokenStream;
 
 class IncludeProcessor extends Processor
 {
-    protected function startKeyword(): string
+    protected static function startKeyword(): string
     {
         return 'include';
     }
 
     /**
      * @inheritDoc
-     * @param Statement $statement
-     * @param TokenStream $stream
-     * @return string
-     * @throws RuntimeException
      * @throws AccessDeniedException
      * @throws ConstraintsException
      * @throws Exception
      * @throws FileSystemRuntimeException
+     * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws RenderingException
      */
-    public function process(Statement $statement, TokenStream $stream): string
+    public function process(Context $context): array
     {
-        $remaining = $statement->remainingTokens();
-
-        if (count($remaining) !== 1) {
-            throw new RuntimeException(sprintf('Invalid number of arguments for include-statement, expected 1 but got %d.', count($remaining)), 500);
+        if (!$this->symbols instanceof HeadOnlySymbols) {
+            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
-        $words = array_map(function (Token $token): string {
-            return $token->token();
-        }, $remaining);
+        $headWords = array_map(function (Token $token): string {
+            return trim($token->token());
+        }, $this->symbols->headTokens());
 
-        $filename = end($words);
-        $filename = $statement->context->resolver()->resolve($filename);
+        $filename = end($headWords);
+        $filename = $context->resolver()->resolve($filename);
 
-        /** @var File $file */
+        /** @var File|null $file */
         if (is_string($filename)) {
-            $file = $this->templater->getRelativeTemplateFile($statement->context->template()->directory(), $filename);
+            $file = $this->templater->getRelativeTemplateFile($context->template()->directory(), $filename);
         } else if ($filename instanceof File) {
             $file = $filename;
         }
@@ -61,11 +57,13 @@ class IncludeProcessor extends Processor
 
         $context = new Context(
             $file,
-            $statement->context->bindings,
-            $statement->context->functions,
-            $statement->context->environment
+            $context->bindings,
+            $context->functions,
+            $context->environment
         );
 
-        return $this->templater->renderFile($context);
+        return [
+            $this->templater->renderFile($context)
+        ];
     }
 }

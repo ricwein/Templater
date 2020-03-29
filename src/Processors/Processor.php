@@ -5,63 +5,142 @@
 
 namespace ricwein\Templater\Processors;
 
+use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
+use ricwein\Templater\Exceptions\RuntimeException;
+use ricwein\Templater\Processors\Symbols\BaseSymbols;
+use ricwein\Templater\Processors\Symbols\BlockSymbols;
+use ricwein\Templater\Processors\Symbols\BranchSymbols;
+use ricwein\Templater\Processors\Symbols\HeadOnlySymbols;
 use ricwein\Templater\Templater;
+use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\TokenStream;
 
 /**
- * provide base worker
+ * provide base processor
  */
 abstract class Processor
 {
-    // for recursive processors
-    protected const MAX_DEPTH = 64;
-
     protected Templater $templater;
+
+    /**
+     * @var BaseSymbols|null
+     */
+    protected ?BaseSymbols $symbols = null;
 
     public function __construct(Templater $templater)
     {
         $this->templater = $templater;
     }
 
+    abstract protected static function startKeyword(): string;
 
-    abstract protected function startKeyword(): string;
-
-    protected function endKeyword(): ?string
+    protected static function endKeyword(): ?string
     {
         return null;
     }
 
-    protected function forkKeywords(): ?array
+    protected static function forkKeywords(): ?array
     {
         return null;
     }
 
-    public function isQualified(Statement $statement): bool
+    public static function isQualified(Statement $statement): bool
     {
-        return $statement->beginsWith([$this->startKeyword()]);
+        return $statement->beginsWith([static::startKeyword()]);
     }
 
-    public function isQualifiedEnd(Statement $statement): bool
+    public static function isQualifiedEnd(Statement $statement): bool
     {
-        if (null !== $endKeyword = $this->endKeyword()) {
+        if (null !== $endKeyword = static::endKeyword()) {
             return $statement->beginsWith([$endKeyword]);
         }
         return false;
     }
 
-    public function isQualifiedFork(Statement $statement): bool
+    public static function isQualifiedFork(Statement $statement): bool
     {
-        if (null !== $forkKeywords = $this->forkKeywords()) {
+        if (null !== $forkKeywords = static::forkKeywords()) {
             return $statement->beginsWith($forkKeywords);
         }
         return false;
     }
 
     /**
-     * @inheritDoc
+     * @param Statement $statement
+     * @param TokenStream $stream
+     * @return self
+     * @throws RuntimeException
      * @throws RenderingException
      */
-    abstract public function process(Statement $statement, TokenStream $stream): string;
+    public function parse(Statement $statement, TokenStream $stream): self
+    {
+        $headTokens = $statement->remainingTokens();
+        if (static::endKeyword() === null) {
+            $this->symbols = new HeadOnlySymbols(static::startKeyword(), $headTokens);
+            return $this;
+        }
+
+
+        /** @var array|null $branches */
+        $branches = null;
+        $isClosed = false;
+        $currentBranch = new BlockSymbols(static::startKeyword(), $headTokens);
+
+        // search endfor statement and save loop-content tokens for later processing
+        while ($token = $stream->next()) {
+            if ($token instanceof BlockToken && $token->block()->is('{%', '%}')) {
+
+                $statement = new Statement($token, $statement->context);
+                if (static::isQualifiedEnd($statement)) {
+
+                    // ends current processor
+                    if ($branches === null) {
+                        $this->symbols = $currentBranch;
+                        return $this;
+                    }
+
+                    $branches[] = $currentBranch;
+                    $this->symbols = new BranchSymbols($branches);
+                    return $this;
+
+                } elseif (static::isQualifiedFork($statement)) {
+
+                    // fork of current processor
+                    if ($branches === null) {
+                        $branches = [$currentBranch];
+                    } else {
+                        $branches[] = $currentBranch;
+                    }
+
+                    $currentBranch = new BlockSymbols(
+                        $statement->matchedKeyword(),
+                        $statement->remainingTokens()
+                    );
+
+                } else {
+
+                    // starts new nested processor
+                    $currentBranch->content[] = $this->templater->resolveProcessorToken($statement, $stream);
+
+                }
+
+            } else {
+                $currentBranch->content[] = $token;
+            }
+        }
+
+        if (!$isClosed) {
+            throw new RuntimeException("Unexpected end of template. Missing '{$this->endKeyword()}' tag.", 500);
+        }
+
+    }
+
+    /**
+     * @inheritDoc
+     * @return string[]
+     * @throws RenderingException
+     */
+    abstract public function process(Context $context): array;
 }

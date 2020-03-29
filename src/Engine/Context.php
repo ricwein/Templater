@@ -14,7 +14,7 @@ class Context
 
     public function __construct(File $template, array $bindings = [], array $functions = [], array $environment = [])
     {
-        $this->bindings = $bindings;
+        $this->bindings = array_replace_recursive($bindings, ['template' => ['file' => $template]]);
         $this->functions = $functions;
         $this->template = $template;
         $this->environment = $environment;

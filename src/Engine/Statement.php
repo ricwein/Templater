@@ -15,6 +15,11 @@ class Statement
     private ?TokenStream $stream = null;
     public Context $context;
 
+    /**
+     * @var BaseToken[]
+     */
+    private array $keywordTokens = [];
+
     public function __construct(BlockToken $token, Context $context)
     {
         $this->token = $token;
@@ -44,7 +49,7 @@ class Statement
     }
 
     /**
-     * @param string[]|string[][] $symbols
+     * @param string[] $symbols
      * @return bool
      */
     public function beginsWith(array $symbols): bool
@@ -55,15 +60,18 @@ class Statement
         foreach ($symbols as $symbol) {
 
             if (is_string($symbol) && $tokens[0] instanceof Token && $tokens[0]->token() === $symbol) {
+                $this->keywordTokens = [$tokens[0]];
                 $stream->reset(1);
                 return true;
             }
 
             if (is_array($symbol)) {
+                $this->keywordTokens = [];
                 foreach (array_values($symbol) as $key => $symbolWord) {
                     if (!isset($tokens[$key]) || !$tokens[$key] instanceof Token || $tokens[$key]->token() !== $symbolWord) {
                         continue 2;
                     }
+                    $this->keywordTokens[] = $tokens[$key];
                 }
 
                 $stream->reset(count($symbol));
@@ -85,5 +93,21 @@ class Statement
             $tokens[] = $token;
         }
         return $tokens;
+    }
+
+    /**
+     * @return BaseToken[]
+     */
+    public function keywordTokens(): array
+    {
+        return $this->keywordTokens;
+    }
+
+    public function matchedKeyword(): string
+    {
+        return implode('', array_map(
+            fn(BaseToken $token): string => trim($token->content()),
+            $this->keywordTokens()
+        ));
     }
 }
