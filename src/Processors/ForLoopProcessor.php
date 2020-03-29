@@ -38,6 +38,7 @@ class ForLoopProcessor extends Processor
      * @inheritDoc
      * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws RenderingException
      */
     public function process(Context $context): array
     {

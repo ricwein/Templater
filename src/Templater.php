@@ -92,10 +92,12 @@ class Templater
 
         // setup core processors
         $this->processors = [
-            Processors\BlockProcessor::class,
+//            Processors\BlockProcessor::class,
             Processors\IncludeProcessor::class,
             Processors\IfProcessor::class,
             Processors\ForLoopProcessor::class,
+            Processors\SetProcessor::class,
+            Processors\CacheProcessor::class,
         ];
 
         $this->tokenizer = new Tokenizer([], [
@@ -237,8 +239,7 @@ class Templater
      * only accepts Tokens, simple BlockTokens (comments, vars) and pre-parsed Processors
      * @param Processors\Processor[]|BaseToken[] $symbols
      * @param Context $context
-     * @return array
-     * @throws RenderingException
+     * @return string[]
      * @throws RuntimeException
      * @throws UnexpectedValueException
      */
@@ -388,25 +389,6 @@ class Templater
         }
 
         return '';
-
-    }
-
-    /**
-     * @param File $file
-     * @return string
-     * @throws FileSystemRuntimeException
-     */
-    public static function getCacheKeyFor(File $file): string
-    {
-        return sprintf(
-            "view.%s_%s",
-            str_replace(
-                ['{', '}', '(', ')', '/', '\\', '@', ':'],
-                ['|', '|', '|', '|', '.', '.', '-', '_'],
-                $file->path()->filepath
-            ),
-            hash('sha256', $file->getTime())
-        );
     }
 
     /**
@@ -421,6 +403,11 @@ class Templater
     public function getRelativeTemplateFile(?Directory $relativeDir, string $filename): ?File
     {
         return static::getTemplateFile($this->templateDir, $relativeDir, $filename, $this->config->fileExtension);
+    }
+
+    public function getCache(): ?ExtendedCacheItemPoolInterface
+    {
+        return $this->cache;
     }
 
     /**

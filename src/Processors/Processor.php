@@ -67,6 +67,15 @@ abstract class Processor
         return false;
     }
 
+    protected function requiresEnd(Statement $statement): bool
+    {
+        if (static::endKeyword() === null) {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * @param Statement $statement
      * @param TokenStream $stream
@@ -77,7 +86,7 @@ abstract class Processor
     public function parse(Statement $statement, TokenStream $stream): self
     {
         $headTokens = $statement->remainingTokens();
-        if (static::endKeyword() === null) {
+        if (!$this->requiresEnd($statement)) {
             $this->symbols = new HeadOnlySymbols(static::startKeyword(), $headTokens);
             return $this;
         }
@@ -140,7 +149,6 @@ abstract class Processor
     /**
      * @inheritDoc
      * @return string[]
-     * @throws RenderingException
      */
     abstract public function process(Context $context): array;
 }

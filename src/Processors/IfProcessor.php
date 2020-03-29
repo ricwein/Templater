@@ -30,6 +30,7 @@ class IfProcessor extends Processor
      * @inheritDoc
      * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws \ricwein\Templater\Exceptions\RenderingException
      */
     public function process(Context $context): array
     {

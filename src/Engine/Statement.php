@@ -19,6 +19,7 @@ class Statement
      * @var BaseToken[]
      */
     private array $keywordTokens = [];
+    private array $tailTokens = [];
 
     public function __construct(BlockToken $token, Context $context)
     {
@@ -62,6 +63,7 @@ class Statement
             if (is_string($symbol) && $tokens[0] instanceof Token && $tokens[0]->token() === $symbol) {
                 $this->keywordTokens = [$tokens[0]];
                 $stream->reset(1);
+                $this->tailTokens = $this->getRemainingTokens($stream);
                 return true;
             }
 
@@ -75,6 +77,7 @@ class Statement
                 }
 
                 $stream->reset(count($symbol));
+                $this->tailTokens = $this->getRemainingTokens($stream);
                 return true;
             }
         }
@@ -82,17 +85,21 @@ class Statement
         return false;
     }
 
+    private function getRemainingTokens(TokenStream $stream): array
+    {
+        $tokens = [];
+        while ($token = $stream->next()) {
+            $tokens[] = $token;
+        }
+        return $tokens;
+    }
+
     /**
      * @return BaseToken[]
      */
     public function remainingTokens(): array
     {
-        $tokens = [];
-        $stream = $this->stream ?? $this->contentTokenStream();
-        while ($token = $stream->next()) {
-            $tokens[] = $token;
-        }
-        return $tokens;
+        return $this->tailTokens;
     }
 
     /**
