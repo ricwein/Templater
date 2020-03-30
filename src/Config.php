@@ -14,7 +14,6 @@ use ricwein\Templater\Exceptions\UnexpectedValueException;
  * @property-read string fileExtension
  * @property-read bool stripComments
  * @property-read string|null templateDir
- * @property-read string|null assetDir
  * @property-read array variables
  */
 class Config
@@ -28,10 +27,6 @@ class Config
 
     // settings which must be set by the user
     protected ?string $templateDir = null;
-    protected ?string $assetDir = null;
-
-    // optional variable-bindings for assets compilation (e.g. scss vars)
-    protected array $variables = [];
 
     /**
      * Config constructor.

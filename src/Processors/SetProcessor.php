@@ -6,7 +6,6 @@ namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Engine\Statement;
-use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
@@ -16,7 +15,7 @@ class SetProcessor extends Processor
 {
     private ?string $variableName = null;
 
-    protected static function startKeyword(): string
+    public static function startKeyword(): string
     {
         return 'set';
     }
@@ -42,9 +41,10 @@ class SetProcessor extends Processor
 
     /**
      * @inheritDoc
+     * @param Context $context
+     * @return array
      * @throws RuntimeException
      * @throws UnexpectedValueException
-     * @throws RenderingException
      */
     public function process(Context $context): array
     {

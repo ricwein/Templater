@@ -11,7 +11,7 @@ use ricwein\Tokenizer\Result\Token;
 
 class IfProcessor extends Processor
 {
-    protected static function startKeyword(): string
+    public static function startKeyword(): string
     {
         return 'if';
     }

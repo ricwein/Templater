@@ -18,8 +18,7 @@ use ricwein\Tokenizer\Tokenizer;
 
 class ForLoopProcessor extends Processor
 {
-
-    protected static function startKeyword(): string
+    public static function startKeyword(): string
     {
         return 'for';
     }

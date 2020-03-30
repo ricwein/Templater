@@ -38,7 +38,6 @@ use ricwein\Tokenizer\Tokenizer;
  */
 class Templater
 {
-    protected ?Directory $assetsDir;
     protected Directory $templateDir;
 
     protected Config $config;
@@ -77,14 +76,6 @@ class Templater
 
         $this->templateDir = $templateDir;
 
-        if (null !== $assetPath = $config->assetDir) {
-            $assetDir = new Directory(new Storage\Disk($assetPath), Constraint::IN_OPENBASEDIR);
-            if (!$assetDir->isDir() && !$assetDir->isReadable()) {
-                throw new FileNotFoundException("Unable to open the given asset dir ({$assetDir->path()->raw}). Check if the directory exists and is readable.", 404);
-            }
-            $this->assetsDir = $assetDir;
-        }
-
         // load core functions
         foreach ((new CoreFunctions($this->config))->get() as $function) {
             $this->addFunction($function);
@@ -92,7 +83,8 @@ class Templater
 
         // setup core processors
         $this->processors = [
-//            Processors\BlockProcessor::class,
+            Processors\ExtendsProcessor::class,
+            Processors\BlockProcessor::class,
             Processors\IncludeProcessor::class,
             Processors\IfProcessor::class,
             Processors\ForLoopProcessor::class,
@@ -113,6 +105,19 @@ class Templater
     public function addFunction(BaseFunction $function): self
     {
         $this->functions[$function->getName()] = $function;
+        return $this;
+    }
+
+    /**
+     * @param array $processors
+     * @return $this
+     * @throws RuntimeException
+     */
+    public function addProcessors(array $processors): self
+    {
+        foreach ($processors as $processor) {
+            $this->addProcessor($processor);
+        }
         return $this;
     }
 
@@ -408,6 +413,11 @@ class Templater
     public function getCache(): ?ExtendedCacheItemPoolInterface
     {
         return $this->cache;
+    }
+
+    public function getConfig(): Config
+    {
+        return $this->config;
     }
 
     /**

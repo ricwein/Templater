@@ -34,7 +34,7 @@ abstract class Processor
         $this->templater = $templater;
     }
 
-    abstract protected static function startKeyword(): string;
+    abstract public static function startKeyword(): string;
 
     protected static function endKeyword(): ?string
     {

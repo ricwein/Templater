@@ -2,12 +2,9 @@
 
 namespace ricwein\Templater\Processors;
 
-use Phpfastcache\Core\Pool\ExtendedCacheItemPoolInterface;
 use Phpfastcache\Exceptions\PhpfastcacheInvalidArgumentException;
 use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException;
-use ricwein\FileSystem\File;
 use ricwein\Templater\Engine\Context;
-use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
@@ -15,7 +12,7 @@ use ricwein\Tokenizer\Result\BaseToken;
 
 class CacheProcessor extends Processor
 {
-    protected static function startKeyword(): string
+    public static function startKeyword(): string
     {
         return 'cache';
     }
@@ -37,11 +34,12 @@ class CacheProcessor extends Processor
         $name = $context->resolver()->resolve($token->content());
 
         $key = sprintf(
-            "view_%s|%d|%s.%d",
+            "view_%s|%d|%s.%d|%d",
             str_replace(['/', '\\'], '.', ltrim($context->template()->path()->filepath, '/')),
             $context->template()->getTime(),
             is_scalar($name) ? $name : '',
             $token->line(),
+            $this->templater->getConfig()->debug ? 1 : 0,
         );
 
         return str_replace(
@@ -83,9 +81,9 @@ class CacheProcessor extends Processor
             return $content;
         }
 
-        // parse cache-config from cache-statement
-        $config = ['time' => 0];
+        $config = ['time' => $this->templater->getConfig()->cacheDuration];
 
+        // parse cache-config from statement if available
         if (count($head) > 0) {
             $configString = implode('', $head);
             $parsedConfig = $context->resolver()->resolve($configString);

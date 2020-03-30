@@ -16,9 +16,42 @@ use ricwein\Tokenizer\Result\Token;
 
 class IncludeProcessor extends Processor
 {
-    protected static function startKeyword(): string
+    public static function startKeyword(): string
     {
         return 'include';
+    }
+
+    /**
+     * @param Context $context
+     * @return File
+     * @throws AccessDeniedException
+     * @throws ConstraintsException
+     * @throws Exception
+     * @throws FileSystemRuntimeException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
+    protected function getFile(Context $context): File
+    {
+        if (!$this->symbols instanceof HeadOnlySymbols) {
+            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+        }
+
+        $filename = implode('', $this->symbols->headTokens());
+        $filename = $context->resolver()->resolve($filename);
+
+        /** @var File|null $file */
+        if (is_string($filename)) {
+            $file = $this->templater->getRelativeTemplateFile($context->template()->directory(), $filename);
+        } else if ($filename instanceof File) {
+            $file = $filename;
+        }
+
+        if ($file === null) {
+            throw new RuntimeException(sprintf('Include of file "%s" failed: File Not Found', $filename), 404);
+        }
+
+        return $file;
     }
 
     /**
@@ -33,27 +66,7 @@ class IncludeProcessor extends Processor
      */
     public function process(Context $context): array
     {
-        if (!$this->symbols instanceof HeadOnlySymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
-        }
-
-        $headWords = array_map(function (Token $token): string {
-            return trim($token->token());
-        }, $this->symbols->headTokens());
-
-        $filename = end($headWords);
-        $filename = $context->resolver()->resolve($filename);
-
-        /** @var File|null $file */
-        if (is_string($filename)) {
-            $file = $this->templater->getRelativeTemplateFile($context->template()->directory(), $filename);
-        } else if ($filename instanceof File) {
-            $file = $filename;
-        }
-
-        if ($file === null) {
-            throw new RuntimeException(sprintf('Include of file "%s" failed: File Not Found', $filename), 404);
-        }
+        $file = $this->getFile($context);
 
         $context = new Context(
             $file,
