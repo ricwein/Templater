@@ -14,7 +14,6 @@ use ricwein\Templater\Exceptions\UnexpectedValueException;
  * @property-read string fileExtension
  * @property-read bool stripComments
  * @property-read string|null templateDir
- * @property-read array variables
  */
 class Config
 {

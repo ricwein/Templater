@@ -35,44 +35,50 @@ class ResolvedSymbol extends Symbol
 
         if ($type !== null) {
             $this->type = $type;
-        } else {
-            switch (true) {
+            return;
+        }
 
-                case is_int($value):
-                    $this->type = self::TYPE_INT;
-                    break;
+        switch (true) {
+            case is_int($value):
+                $this->type = self::TYPE_INT;
+                break;
 
-                case is_float($value):
-                    $this->type = self::TYPE_FLOAT;
-                    break;
+            // valid integers can be casted as floats, in which case is_int fails
+            case is_numeric($value) && strlen((string)$value) === strlen((string)(float)$value):
+                $this->type = self::TYPE_INT;
+                $this->value = (int)$value;
+                break;
 
-                case is_string($value):
-                    $this->type = self::TYPE_STRING;
-                    break;
+            case is_float($value):
+                $this->type = self::TYPE_FLOAT;
+                break;
 
-                case is_bool($value):
-                    $this->type = self::TYPE_BOOL;
-                    break;
+            case is_string($value):
+                $this->type = self::TYPE_STRING;
+                break;
 
-                case is_object($value):
-                    $this->type = self::TYPE_OBJECT;
-                    break;
+            case is_bool($value):
+                $this->type = self::TYPE_BOOL;
+                break;
 
-                case is_array($value):
-                    $this->type = self::TYPE_ARRAY;
-                    break;
+            case is_object($value):
+                $this->type = self::TYPE_OBJECT;
+                break;
 
-                case $value === null:
-                    $this->type = self::TYPE_NULL;
-                    break;
+            case is_array($value):
+                $this->type = self::TYPE_ARRAY;
+                break;
 
-                default:
-                    throw new RuntimeException(sprintf(
-                        "Unsupported DataType %s.",
-                        is_object($value) ? sprintf("class(%s)", get_class($value)) : gettype($value)
-                    ), 500);
-                    break;
-            }
+            case $value === null:
+                $this->type = self::TYPE_NULL;
+                break;
+
+            default:
+                throw new RuntimeException(sprintf(
+                    "Unsupported DataType %s.",
+                    is_object($value) ? sprintf("class(%s)", get_class($value)) : gettype($value)
+                ), 500);
+                break;
         }
     }
 

@@ -43,6 +43,9 @@ class Templater
     protected Config $config;
     protected ?ExtendedCacheItemPoolInterface $cache = null;
 
+    /**
+     * @var BaseFunction[]
+     */
     private array $functions = [];
     private Tokenizer $tokenizer;
 
@@ -90,6 +93,7 @@ class Templater
             Processors\ForLoopProcessor::class,
             Processors\SetProcessor::class,
             Processors\CacheProcessor::class,
+            Processors\ApplyProcessor::class,
         ];
 
         $this->tokenizer = new Tokenizer([], [
@@ -169,6 +173,9 @@ class Templater
             $content = $this->renderFile($context);
 
         } catch (RenderingException $exception) {
+            if ($exception->getTemplateFile() === null) {
+                $exception->setTemplateFile($templateFile);
+            }
             throw $exception;
         } catch (Exception $exception) {
             throw new TemplatingException(
@@ -198,15 +205,18 @@ class Templater
 
         try {
             $templateContent = $context->template()->read();
-            $tokenStream = $this->tokenizer->tokenize($templateContent);
+            $tokenStream = $this->tokenizer->tokenize($templateContent, $line);
 
             $lines = $this->resolveStream($tokenStream, $context, $line);
             return implode('', $lines);
 
         } catch (RenderingException $exception) {
+            if ($exception->getTemplateFile() === null) {
+                $exception->setTemplateFile($context->template());
+            }
             throw $exception;
         } catch (Exception $exception) {
-            throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $line);
+            throw new RenderingException("Error rendering Template: {$exception->getMessage()}", $exception->getCode() > 0 ? $exception->getCode() : 400, $exception, $context->template(), $line);
         }
     }
 
@@ -291,7 +301,7 @@ class Templater
 
         if ($token->block()->is('{{', '}}')) {
 
-            $value = $context->resolver()->resolve($content);
+            $value = $context->resolver()->resolve(trim($content), $token->line());
             return $this->asPrintable($value, $content);
 
         }
@@ -333,9 +343,12 @@ class Templater
             }
 
         } catch (RenderingException $exception) {
+            if ($exception->getTemplateFile() === null) {
+                $exception->setTemplateFile($context->template());
+            }
             throw $exception;
         } catch (Exception $exception) {
-            throw new RenderingException("Error rendering template.", 500, $exception, $context->template(), $token->line());
+            throw new RenderingException("Error rendering Template: {$exception->getMessage()}", $exception->getCode() > 0 ? $exception->getCode() : 400, $exception, $context->template(), $token->line());
         }
 
         return $lines;

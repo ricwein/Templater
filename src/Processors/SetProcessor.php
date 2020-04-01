@@ -56,10 +56,10 @@ class SetProcessor extends Processor
 
         } elseif ($this->symbols instanceof HeadOnlySymbols) {
 
-            $headWords = $this->symbols->headTokens();
-            array_shift($headWords);
-            $headString = ltrim(implode('', $headWords), '= ');
-            $value = $context->resolver()->resolve($headString);
+            $headTokens = $this->symbols->headTokens();
+            $firstToken = array_shift($headTokens);
+            $headString = ltrim(implode('', $headTokens), '= ');
+            $value = $context->resolver()->resolve($headString, $firstToken->line());
 
         } else {
             throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);

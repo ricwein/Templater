@@ -45,7 +45,7 @@ class Statement
         }
 
         $tokenizer = new Tokenizer([new Delimiter(' '), new Delimiter(PHP_EOL)], []);
-        $this->stream = $tokenizer->tokenize($this->content());
+        $this->stream = $tokenizer->tokenize($this->content(), $this->line());
         return $this->stream;
     }
 

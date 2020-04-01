@@ -19,8 +19,6 @@ class ConfigTest extends TestCase
         $this->assertSame($config->stripComments, true);
 
         $this->assertSame($config->templateDir, null);
-        $this->assertSame($config->assetDir, null);
-        $this->assertSame($config->variables, []);
     }
 
     public function testConfigOverloading()
@@ -32,8 +30,6 @@ class ConfigTest extends TestCase
             'fileExtension' => '.test',
             'stripComments' => false,
             'templateDir' => __DIR__,
-            'assetDir' => __DIR__,
-            'variables' => ['test'],
         ]);
 
         $this->assertSame($config->debug, true);
@@ -43,8 +39,6 @@ class ConfigTest extends TestCase
         $this->assertSame($config->stripComments, false);
 
         $this->assertSame($config->templateDir, __DIR__);
-        $this->assertSame($config->assetDir, __DIR__);
-        $this->assertSame($config->variables, ['test']);
     }
 
     public function testConfigOverloadingTypeSafety()

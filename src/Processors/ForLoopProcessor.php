@@ -55,10 +55,16 @@ class ForLoopProcessor extends Processor
 
         // pre-process loop conditions and resolve variables
         $loopIterations = [];
-        $loopHeadString = implode('', $forBlock->headTokens());
+        $headTokens = $forBlock->headTokens();
+        $loopHeadString = implode('', $headTokens);
         $line = $forBlock->headTokens()[0]->line();
         [$loopKeyName, $loopValueName, $loopSource, $loopCondition] = $this->parseLoopHead($loopHeadString, $context, $line);
-        $loopSource = $context->resolver()->resolve($loopSource);
+
+        $line = 1;
+        if (false !== $firstToken = reset($headTokens)) {
+            $line = $firstToken->line();
+        }
+        $loopSource = $context->resolver()->resolve($loopSource, $line);
 
         if (!is_array($loopSource) && !is_countable($loopSource) && !is_iterable($loopSource)) {
             throw new RuntimeException(sprintf('Unable to loop above non-countable object of type: %s', is_object($loopSource) ? sprintf('class(%s)', get_class($loopSource)) : gettype($loopSource)), 500);
@@ -136,7 +142,7 @@ class ForLoopProcessor extends Processor
             new Block('{', '}', false),
             new Block('\'', '\'', false),
             new Block('"', '"', false),
-        ]))->tokenize($loopHeadString);
+        ]))->tokenize($loopHeadString, $line);
 
         /** @var BaseToken[] $current */
         $current = [];

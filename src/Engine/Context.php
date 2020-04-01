@@ -9,9 +9,19 @@ class Context
 {
     private File $template;
     public array $bindings;
+    /**
+     * @var BaseFunction[]
+     */
     public array $functions;
     public array $environment;
 
+    /**
+     * Context constructor.
+     * @param File $template
+     * @param array $bindings
+     * @param BaseFunction[] $functions
+     * @param array $environment
+     */
     public function __construct(File $template, array $bindings = [], array $functions = [], array $environment = [])
     {
         $this->bindings = array_replace_recursive($bindings, ['template' => ['file' => $template]]);

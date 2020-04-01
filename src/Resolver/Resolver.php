@@ -98,12 +98,13 @@ class Resolver
      * Casts input (string) $parameter to real data-type.
      * Resolves bindings if required.
      * @param string $parameter
+     * @param int $startLine
      * @return mixed
      * @throws RuntimeException
      */
-    public function resolve(string $parameter)
+    public function resolve(string $parameter, int $startLine = 1)
     {
-        $tokens = $this->tokenizer->tokenize($parameter);
+        $tokens = $this->tokenizer->tokenize($parameter, $startLine);
         return $this->resolveTokenized($tokens);
     }
 
@@ -248,6 +249,7 @@ class Resolver
      * @param Symbol $predecessorSymbol
      * @return ResolvedSymbol
      * @throws RuntimeException
+     * @internal
      */
     public function resolveContextTokens(array $symbols, ?Symbol $predecessorSymbol = null): Symbol
     {
@@ -382,6 +384,14 @@ class Resolver
             // test[0] || [some, things][0]
             case SymbolHelper::isArrayAccess($block, $predecessorSymbol):
                 $blockResult = new ResolvedSymbol($this->resolveTokens($block->tokens())->value(), false);
+
+                if (!$blockResult->is(Symbol::ANY_KEYPATH_PART)) {
+                    throw new RuntimeException(
+                        sprintf('Invalid key-type for array access. Key must be of type: %s - but got %s instead.', implode('/', Symbol::ANY_KEYPATH_PART), $blockResult->type()),
+                        500
+                    );
+                }
+
                 return $block->prefix() !== null ? [new ResolvedSymbol($block->prefix(), false), $blockResult] : [$blockResult];
 
             // ( first.name )

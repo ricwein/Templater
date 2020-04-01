@@ -39,7 +39,8 @@ class KeypathFinder
     public function next($key): bool
     {
         switch (true) {
-            case is_array($this->current) && (is_string($key) || is_numeric($key)) && array_key_exists($key, $this->current):
+            case (is_int($key) || is_string($key)) && is_array($this->current) && (is_string($key) || is_numeric($key)) && array_key_exists($key, $this->current):
+            case is_array($this->current) && (is_string($key) || is_numeric($key)) && isset($this->current[$key]):
                 $this->current = $this->current[$key];
                 $this->path[] = $key;
                 return true;

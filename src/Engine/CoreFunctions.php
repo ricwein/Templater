@@ -83,9 +83,12 @@ class CoreFunctions
             'title' => [$this, 'strtotitle'],
             'capitalize' => [$this, 'capitalize'],
             'trim' => 'trim',
+            'rtrim' => 'rtrim',
+            'ltrim' => 'ltrim',
             'nl2br' => 'nl2br',
             'striptags' => 'strip_tags',
             'replace' => [$this, 'replace'],
+            'spaceless' => [$this, 'spaceless'],
 
             'json_encode' => 'json_encode',
             'json_decode' => 'json_decode',
@@ -149,7 +152,7 @@ class CoreFunctions
             return htmlspecialchars((string)$string, ENT_QUOTES | ENT_SUBSTITUTE);
         }
 
-        return $string;
+        return (string)$string;
     }
 
     public function range($start, $end, int $steps = 1)
@@ -212,6 +215,9 @@ class CoreFunctions
 
     public function isEmpty($var): bool
     {
+        if (is_string($var)) {
+            return empty(trim($var));
+        }
         return empty($var);
     }
 
@@ -278,6 +284,11 @@ class CoreFunctions
             return str_replace($search, $replace, $subject);
         }
         return str_replace(array_keys($search), array_values($search), $subject);
+    }
+
+    public function spaceless(string $content): string
+    {
+        return trim(preg_replace('/>\s+</', '><', $content));
     }
 
     /**

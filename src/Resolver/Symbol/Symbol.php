@@ -19,7 +19,7 @@ abstract class Symbol
     public const ANY_SCALAR = [self::TYPE_STRING, self::TYPE_FLOAT, self::TYPE_INT, self::TYPE_BOOL];
     public const ANY_DEFINABLE = [self::TYPE_FLOAT, self::TYPE_INT, self::TYPE_BOOL, self::TYPE_ARRAY];
     public const ANY_ACCESSIBLE = [self::TYPE_OBJECT, self::TYPE_ARRAY];
-    public const ANY_KEYPATH_PART = [self::TYPE_STRING, self::TYPE_INT];
+    public const ANY_KEYPATH_PART = [self::TYPE_STRING, self::TYPE_INT, self::TYPE_FLOAT];
     public const ANY_NUMERIC = [self::TYPE_INT, self::TYPE_FLOAT];
 
     abstract public function value(bool $trimmed = false);

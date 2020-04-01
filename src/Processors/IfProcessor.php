@@ -7,6 +7,7 @@ use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
 use ricwein\Templater\Processors\Symbols\BranchSymbols;
+use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Result\Token;
 
 class IfProcessor extends Processor
@@ -28,9 +29,10 @@ class IfProcessor extends Processor
 
     /**
      * @inheritDoc
+     * @param Context $context
+     * @return array
      * @throws RuntimeException
      * @throws UnexpectedValueException
-     * @throws \ricwein\Templater\Exceptions\RenderingException
      */
     public function process(Context $context): array
     {
@@ -49,8 +51,16 @@ class IfProcessor extends Processor
                 case 'if':
                 case 'else if':
                 case 'elseif':
-                    $conditionString = implode('', array_map(fn(Token $conditionToken): string => $conditionToken, $branch->headTokens()));
-                    if ($context->resolver()->resolve($conditionString)) {
+
+                    $headTokens = $branch->headTokens();
+                    $conditionString = implode('', array_map(fn(Token $conditionToken): string => $conditionToken, $headTokens));
+
+                    $line = 1;
+                    if (false !== $firstToken = reset($headTokens)) {
+                        $line = $firstToken->line();
+                    }
+
+                    if ($context->resolver()->resolve($conditionString, $line)) {
                         return $this->templater->resolveSymbols($branch->content, $context);
                     }
                     break;

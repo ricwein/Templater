@@ -2,14 +2,23 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+use ricwein\FileSystem\Exceptions\AccessDeniedException;
+use ricwein\FileSystem\Exceptions\Exception as FileSystemException;
+use ricwein\FileSystem\Exceptions\RuntimeException as FileSystemRuntimeException;
+use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
 use ricwein\FileSystem\File;
 use ricwein\Templater\Config;
 use ricwein\Templater\Engine\CoreFunctions;
+use ricwein\Templater\Exceptions\RuntimeException as RuntimeException;
+use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Resolver\Resolver;
 use ricwein\FileSystem\Storage;
 
 class ResolverTest extends TestCase
 {
+    /**
+     * @throws RuntimeException
+     */
     public function testDirectResolving()
     {
         $resolver = new Resolver();
@@ -34,6 +43,14 @@ class ResolverTest extends TestCase
         $this->assertSame('value2', $resolver->resolve("['value1', 'value2'][1]"));
     }
 
+    /**
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws AccessDeniedException
+     * @throws FileSystemException
+     * @throws FileSystemRuntimeException
+     * @throws FileSystemUnexpectedValueException
+     */
     public function testBindingsResolving()
     {
         $bindings = [
@@ -66,6 +83,31 @@ class ResolverTest extends TestCase
         $this->assertSame('text/x-php; charset=us-ascii', $resolver->resolve('file.getType(true)'));
     }
 
+    /**
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
+    public function testArrayAccess()
+    {
+        $bindings = [
+            'value1' => 'yay',
+            'value2' => 1,
+            'nested' => ['yay' => 'success'],
+            'array' => ['value1', 'value2'],
+            'key' => ['name' => 'yay'],
+        ];
+        $functions = (new CoreFunctions(new Config()))->get();
+        $resolver = new Resolver($bindings, $functions);
+
+        $this->assertSame('success', $resolver->resolve('nested[value1]'));
+        $this->assertSame('value2', $resolver->resolve('array[value2]'));
+        $this->assertSame('success', $resolver->resolve('nested[key.name]'));
+        $this->assertSame('success', $resolver->resolve('nested[key.name]'));
+    }
+
+    /**
+     * @throws RuntimeException
+     */
     public function testConditionResolving()
     {
         $resolver = new Resolver();
@@ -83,6 +125,9 @@ class ResolverTest extends TestCase
         //$this->assertSame('oh no', $resolver->resolve("false ? 'yay' : true ? 'oh no' : 'my bad'"));
     }
 
+    /**
+     * @throws RuntimeException
+     */
     public function testConditionalBindingResolving()
     {
         $bindings = [
@@ -101,6 +146,10 @@ class ResolverTest extends TestCase
         }
     }
 
+    /**
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
     public function testFunctionCalls()
     {
         $bindings = [
@@ -144,17 +193,29 @@ class ResolverTest extends TestCase
 
         $filepath = __FILE__;
         $this->assertSame(file_get_contents($filepath), $resolver->resolve("file('{$filepath}').read()"));
-        return;
 
         $this->assertSame('yay', $resolver->resolve("data | first ? 'yay'"));
-        $this->assertSame('', $resolver->resolve("data | last ? 'yay'"));
+        $this->assertSame(null, $resolver->resolve("data | last ? 'yay'"));
         $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));
         $this->assertSame('mismatches', $resolver->resolve("strings | first != strings | last ? 'mismatches'"));
-        $this->assertSame('also exists', $resolver->resolve("'another' in strings | last ? 'also exists'"));
         $this->assertSame('success', $resolver->resolve("strings | first == strings.0 ? 'success'"));
         $this->assertSame('mismatches', $resolver->resolve("strings | first != strings | last ? 'mismatches'"));
+
+        // TODO: fix this:
+//        $this->assertSame('also exists', $resolver->resolve("'another' in strings[2] ? 'also exists'"));
+//        $this->assertSame('also exists', $resolver->resolve("'another' in (strings | last) ? 'also exists'"));
+//        $this->assertSame('also exists', $resolver->resolve("'another' in last(strings) ? 'also exists'"));
+        $this->assertSame('also exists', $resolver->resolve("'another' in (['another'] | last) ? 'also exists'"));
     }
 
+    /**
+     * @throws AccessDeniedException
+     * @throws FileSystemException
+     * @throws FileSystemRuntimeException
+     * @throws FileSystemUnexpectedValueException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
     public function testOperators()
     {
         $bindings = [
@@ -163,6 +224,8 @@ class ResolverTest extends TestCase
             'strings' => ['yay', 'no', 'another string'],
             'non_value' => null,
             'file' => new File(new Storage\Disk(__FILE__)),
+            'index' => 2,
+            'another_index' => 3,
         ];
 
         $functions = (new CoreFunctions(new Config()))->get();
@@ -170,6 +233,11 @@ class ResolverTest extends TestCase
 
         $this->assertSame(false, $resolver->resolve('true && false'));
         $this->assertSame(true, $resolver->resolve('true || false'));
+
+        $this->assertSame(true, $resolver->resolve('(true and false) or (true and true)'));
+        $this->assertSame(false, $resolver->resolve('(true and false) and (true and true)'));
+        $this->assertSame(true, $resolver->resolve('2 in range(1, 3) and (true)'));
+        $this->assertSame(true, $resolver->resolve('another_index in range(index - 2, index + 2) and (non_value is empty)'));
 
         $this->assertSame("was nil", $resolver->resolve("non_value ?? 'was nil'"));
         $this->assertSame("success", $resolver->resolve("nested.test ?? 'was nil'"));
@@ -216,6 +284,10 @@ class ResolverTest extends TestCase
         $this->assertSame("success no", $resolver->resolve("nested['test'] ~ ' ' ~ strings.1"));
     }
 
+    /**
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
     public function testBracketingResolution()
     {
         $bindings = [
@@ -230,6 +302,10 @@ class ResolverTest extends TestCase
         $this->assertSame("success", $resolver->resolve("nested.(strings.1)"));
     }
 
+    /**
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     */
     public function testLateResolution()
     {
         $bindings = [];
