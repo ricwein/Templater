@@ -10,15 +10,22 @@ class Environment
     /**
      * @var array<string, array<int, array<BaseToken|Processor>>>
      */
-    private array $blocks = [];
+    private array $blocks;
+
+    /**
+     * @var array<string, string>
+     */
+    private array $resolvedBlocks;
 
     /**
      * Environment constructor.
      * @param array<string, array<int, array<BaseToken|Processor>>> $blocks
+     * @param array<string, string> $resolvedBlocks
      */
-    public function __construct(array $blocks = [])
+    public function __construct(array $blocks = [], array $resolvedBlocks = [])
     {
         $this->blocks = $blocks;
+        $this->resolvedBlocks = $resolvedBlocks;
     }
 
     /**
@@ -34,10 +41,10 @@ class Environment
     }
 
     /**
-     * @param $name
+     * @param string $name
      * @return null|array<int, array<BaseToken|Processor>>
      */
-    public function getBlockVersions($name): ?array
+    public function getBlockVersions(string $name): ?array
     {
         if (!isset($this->blocks[$name])) {
             return null;
@@ -46,11 +53,16 @@ class Environment
         return $this->blocks[$name];
     }
 
-    /**
-     * @return array<string, array<int, array<BaseToken|Processor>>>
-     */
-    public function getBlocks(): array
+    public function addResolvedBlock(string $name, string $content): void
     {
-        return $this->blocks;
+        $this->resolvedBlocks[$name] = $content;
+    }
+
+    public function getResolvedBlock(string $name): ?string
+    {
+        if (isset($this->resolvedBlocks[$name])) {
+            return $this->resolvedBlocks[$name];
+        }
+        return null;
     }
 }

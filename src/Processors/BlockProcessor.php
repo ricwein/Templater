@@ -34,20 +34,33 @@ class BlockProcessor extends Processor
             throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
+        // get current block name
         $blockName = trim(implode('', $this->symbols->headTokens()));
-        $context->environment->addBlock($blockName, $this->symbols->content);
 
+        // try to fetch version chain, early cancel and only render current block if the history is empty
         /** @var array<int, array<BaseToken|Processor>> $blockVersions */
         if (null === $blockVersions = $context->environment->getBlockVersions($blockName)) {
             return $this->templater->resolveSymbols($this->symbols->content, $context);
         }
+
+        // add current block into block version chain
+        $blockVersions[] = $this->symbols->content;
+
 
         if (null === $lastBlock = array_shift($blockVersions)) {
             return $this->templater->resolveSymbols($this->symbols->content, $context);
         }
 
         $resolveContext = clone $context;
-        $resolveContext->functions['parent'] = new BaseFunction('parent', function () use (&$blockVersions, $resolveContext): string {
+        $resolveContext->functions['parent'] = new BaseFunction('parent', function (int $offset = 1) use (&$blockVersions, $resolveContext): string {
+            if ($offset < 1 || $offset > count($blockVersions)) {
+                return '';
+            }
+
+            for ($i = 0; $i < $offset; ++$i) {
+
+            }
+
             /** @var array<BaseToken|Processor> $lastBlock */
             if (null === $lastBlock = array_shift($blockVersions)) {
                 return '';
@@ -58,6 +71,7 @@ class BlockProcessor extends Processor
 
         $resolved = $this->templater->resolveSymbols($lastBlock, $resolveContext);
 
+        $context->environment->addResolvedBlock($blockName, implode('', $resolved));
         $context->bindings = $resolveContext->bindings;
         $context->environment = $resolveContext->environment;
 

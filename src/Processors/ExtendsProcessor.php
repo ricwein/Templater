@@ -6,9 +6,7 @@ use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
-use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
-use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\TokenStream;
 
@@ -34,13 +32,13 @@ class ExtendsProcessor extends IncludeProcessor
 
                 $processor = $this->templater->resolveProcessorToken($localStatement, $stream);
                 if (!$processor instanceof BlockProcessor) {
-                    throw new RenderingException(sprintf("Only {%% block %%} statements are allowed inside an template-extension, but got: %s", trim($token)), 500, null, $statement->context->template(), $token->line());
+                    throw new RenderingException(sprintf('Only {%% block %%} statements and comments {# #} are allowed inside an template-extension, but got: %s', trim($token)), 500, null, $statement->context->template(), $token->line());
                 }
 
                 $this->symbols->content[] = $processor;
 
-            } elseif (!empty(trim($token->content()))) {
-                throw new RenderingException(sprintf("Only {%% block %%} statements are allowed inside an template-extension, but got: %s", trim($token)), 500, null, $statement->context->template(), $token->line());
+            } elseif (!($token instanceof BlockToken && $token->block()->is('{#', '#}')) && !empty(trim($token->content()))) {
+                throw new RenderingException(sprintf('Only {%% block %%} statements and comments {# #} are allowed inside an template-extension, but got: %s', trim($token)), 500, null, $statement->context->template(), $token->line());
             }
         }
 
@@ -58,8 +56,6 @@ class ExtendsProcessor extends IncludeProcessor
 
             $blockSymbols = $symbol->content;
 
-            // TODO handle nested subblocks in $blockSymbols
-
             // store unresolved block symbols in context-environment for later resolution
             $context->environment->addBlock($blockName, $blockSymbols);
         }
@@ -71,7 +67,7 @@ class ExtendsProcessor extends IncludeProcessor
     public function process(Context $context): array
     {
         if (!$this->symbols instanceof BlockSymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+            throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
         // fetch all local (current template) blocks

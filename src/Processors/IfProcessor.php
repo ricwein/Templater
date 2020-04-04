@@ -60,7 +60,7 @@ class IfProcessor extends Processor
                         $line = $firstToken->line();
                     }
 
-                    if ($context->resolver()->resolve($conditionString, $line)) {
+                    if ($context->expressionResolver()->resolve($conditionString, $line)) {
                         return $this->templater->resolveSymbols($branch->content, $context);
                     }
                     break;

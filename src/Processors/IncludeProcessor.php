@@ -35,7 +35,7 @@ class IncludeProcessor extends Processor
      */
     protected function getFile(BaseToken $token, Context $context): File
     {
-        $filename = $context->resolver()->resolve((string)$token, $token->line());
+        $filename = $context->expressionResolver()->resolve((string)$token, $token->line());
 
         /** @var File|null $file */
         if (is_string($filename)) {
@@ -81,7 +81,7 @@ class IncludeProcessor extends Processor
             }
         }
 
-        $parameters = $context->resolver()->resolve(implode('', $tokens), $keyword->line());
+        $parameters = $context->expressionResolver()->resolve(implode('', $tokens), $keyword->line());
         if (!is_array($parameters) && !is_countable($parameters) && !is_iterable($parameters)) {
             throw new RenderingException(sprintf('Include with parameters must be an array, but is: %s', is_object($parameters) ? sprintf('class (%s)', get_class($parameters)) : gettype($parameters)), 500, null, $context->template(), $keyword->line());
         }

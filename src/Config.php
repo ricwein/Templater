@@ -21,7 +21,7 @@ class Config
     protected bool $debug = false;
     protected int $cacheDuration = 3600;
     protected bool $cacheBusterEnabled = true;
-    protected string $fileExtension = ".html.twig";
+    protected string $fileExtension = '.html.twig';
     protected bool $stripComments = true;
 
     // settings which must be set by the user

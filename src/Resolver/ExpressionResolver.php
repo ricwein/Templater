@@ -17,7 +17,7 @@ use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Tokenizer;
 
-class Resolver
+class ExpressionResolver
 {
     private const IGNORE_VAR = 0b00;
     private const APPEND_VAR = 0b01;

@@ -4,7 +4,7 @@ namespace ricwein\Templater\Engine;
 
 use ricwein\FileSystem\File;
 use ricwein\Templater\Engine\Context\Environment;
-use ricwein\Templater\Resolver\Resolver;
+use ricwein\Templater\Resolver\ExpressionResolver;
 
 class Context
 {
@@ -41,9 +41,9 @@ class Context
         return $this->template;
     }
 
-    public function resolver(): Resolver
+    public function expressionResolver(): ExpressionResolver
     {
-        return new Resolver(array_replace_recursive($this->bindings, [
+        return new ExpressionResolver(array_replace_recursive($this->bindings, [
             'template' => ['file' => $this->template()],
         ]), $this->functions);
     }

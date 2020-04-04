@@ -8,7 +8,7 @@ use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
 use ricwein\Templater\Processors\Symbols\BranchSymbols;
-use ricwein\Templater\Resolver\Resolver;
+use ricwein\Templater\Resolver\ExpressionResolver;
 use ricwein\Tokenizer\InputSymbols\Block;
 use ricwein\Tokenizer\InputSymbols\Delimiter;
 use ricwein\Tokenizer\Result\BaseToken;
@@ -64,7 +64,7 @@ class ForLoopProcessor extends Processor
         if (false !== $firstToken = reset($headTokens)) {
             $line = $firstToken->line();
         }
-        $loopSource = $context->resolver()->resolve($loopSource, $line);
+        $loopSource = $context->expressionResolver()->resolve($loopSource, $line);
 
         if (!is_array($loopSource) && !is_countable($loopSource) && !is_iterable($loopSource)) {
             throw new RuntimeException(sprintf('Unable to loop above non-countable object of type: %s', is_object($loopSource) ? sprintf('class(%s)', get_class($loopSource)) : gettype($loopSource)), 500);
@@ -105,7 +105,7 @@ class ForLoopProcessor extends Processor
             );
 
             if ($loopCondition !== null) {
-                $satisfied = (new Resolver($loopContext->bindings, $loopContext->functions))->resolve($loopCondition);
+                $satisfied = (new ExpressionResolver($loopContext->bindings, $loopContext->functions))->resolve($loopCondition);
                 if (!$satisfied) {
                     continue;
                 }

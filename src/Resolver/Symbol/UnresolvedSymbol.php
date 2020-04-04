@@ -3,7 +3,7 @@
 namespace ricwein\Templater\Resolver\Symbol;
 
 use ricwein\Templater\Exceptions\RuntimeException;
-use ricwein\Templater\Resolver\Resolver;
+use ricwein\Templater\Resolver\ExpressionResolver;
 use ricwein\Tokenizer\Result\BaseToken;
 
 class UnresolvedSymbol extends Symbol
@@ -24,13 +24,13 @@ class UnresolvedSymbol extends Symbol
      */
     private ?Symbol $predecessorSymbol = null;
 
-    private Resolver $resolver;
+    private ExpressionResolver $resolver;
 
     /**
      * @inheritDoc
      * @param BaseToken[] $symbols
      */
-    public function __construct(array $symbols, Resolver $resolver)
+    public function __construct(array $symbols, ExpressionResolver $resolver)
     {
         $this->symbols = $symbols;
         $this->resolver = $resolver;

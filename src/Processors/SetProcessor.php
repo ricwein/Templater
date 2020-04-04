@@ -31,11 +31,7 @@ class SetProcessor extends Processor
         $variableName = array_shift($headWords);
         $this->variableName = $variableName->content();
 
-        if (count($headWords) > 0) {
-            return false;
-        }
-
-        return true;
+        return count($headWords) <= 0;
     }
 
 
@@ -59,7 +55,7 @@ class SetProcessor extends Processor
             $headTokens = $this->symbols->headTokens();
             $firstToken = array_shift($headTokens);
             $headString = ltrim(implode('', $headTokens), '= ');
-            $value = $context->resolver()->resolve($headString, $firstToken->line());
+            $value = $context->expressionResolver()->resolve($headString, $firstToken->line());
 
         } else {
             throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);

@@ -15,16 +15,23 @@ use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Helper\PathFinder;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
+use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use Traversable;
 
 class CoreFunctions
 {
     private Config $config;
+    private ?Context $context = null;
 
     public function __construct(Config $config)
     {
         $this->config = $config;
+    }
+
+    public function setContext(Context $context): void
+    {
+        $this->context = $context;
     }
 
 
@@ -33,6 +40,7 @@ class CoreFunctions
      */
     public function get(): array
     {
+        /** @var array<string, callable> $exposeFunctions */
         $exposeFunctions = [
             'dump' => [$this, 'dump'],
             'constant' => [$this, 'mapConstant'],
@@ -103,6 +111,8 @@ class CoreFunctions
 
             'file' => [$this, 'getFile'],
             'directory' => [$this, 'getDirectory'],
+
+            'block' => [$this, 'getBlock']
         ];
 
         $functions = [];
@@ -378,5 +388,27 @@ class CoreFunctions
     public function not($value): bool
     {
         return !$value;
+    }
+
+    /**
+     * @inheritDoc
+     * @throws TemplatingException
+     */
+    public function getBlock(string $blockName): string
+    {
+        $blockName = trim($blockName);
+
+        if ($this->context === null) {
+            throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Missing a proper context.', $blockName), 500);
+        }
+
+        if (null === $block = $this->context->environment->getResolvedBlock($blockName)) {
+            if (null !== $this->context->environment->getBlockVersions($blockName)) {
+                throw new TemplatingException(sprintf('Unable to fetch block for name: %s. The block must be finished befor befor it can be accessed with the block() function.', $blockName), 500);
+            }
+            throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Unknown block.', $blockName), 500);
+        }
+
+        return $block;
     }
 }

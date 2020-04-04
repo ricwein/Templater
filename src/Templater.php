@@ -48,6 +48,7 @@ class Templater
      */
     private array $functions = [];
     private Tokenizer $tokenizer;
+    private CoreFunctions $coreFunctions;
 
     /**
      * @var string[]
@@ -69,7 +70,7 @@ class Templater
         $this->cache = $cache;
 
         if (null === $templatePath = $config->templateDir) {
-            throw new RuntimeException("Initialization of the Templater class requires Config::\$templateDir to be set, but is not.", 500);
+            throw new RuntimeException('Initialization of the Templater class requires Config::$templateDir to be set, but is not.', 500);
         }
 
         $templateDir = new Directory(new Storage\Disk($templatePath), Constraint::IN_OPENBASEDIR);
@@ -78,9 +79,10 @@ class Templater
         }
 
         $this->templateDir = $templateDir;
+        $this->coreFunctions = new CoreFunctions($this->config);
 
         // load core functions
-        foreach ((new CoreFunctions($this->config))->get() as $function) {
+        foreach (($this->coreFunctions)->get() as $function) {
             $this->addFunction($function);
         }
 
@@ -199,6 +201,8 @@ class Templater
      */
     public function renderFile(Context $context): string
     {
+        $this->coreFunctions->setContext($context);
+
         // add current global config to context-bindings to allow usage in templates
         $context->bindings = array_replace_recursive($context->bindings, ['config' => $this->config->asArray()]);
         $lineno = 1;
@@ -301,7 +305,7 @@ class Templater
 
         if ($token->block()->is('{{', '}}')) {
 
-            $value = $context->resolver()->resolve(trim($content), $token->line());
+            $value = $context->expressionResolver()->resolve(trim($content), $token->line());
             return $this->asPrintable($value, $content);
 
         }
@@ -309,7 +313,7 @@ class Templater
         if ($token->block()->is('{#', '#}')) {
 
             if (!$this->config->stripComments) {
-                return sprintf("<!-- %s -->", $content);
+                return sprintf('<!-- %s -->', $content);
             }
             return '';
 

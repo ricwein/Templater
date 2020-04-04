@@ -31,7 +31,7 @@ class CacheProcessor extends Processor
      */
     private function getCacheKey(BaseToken $token, Context $context): string
     {
-        $name = $context->resolver()->resolve($token->content(), $token->line());
+        $name = $context->expressionResolver()->resolve($token->content(), $token->line());
 
         $key = sprintf(
             "view_%s|%d|%s.%d|%d",
@@ -86,7 +86,7 @@ class CacheProcessor extends Processor
         // parse cache-config from statement if available
         if (count($head) > 0) {
             $configString = implode('', $head);
-            $parsedConfig = $context->resolver()->resolve($configString, $nameToken->line());
+            $parsedConfig = $context->expressionResolver()->resolve($configString, $nameToken->line());
             if (is_numeric($parsedConfig)) {
                 $config['time'] = (int)$parsedConfig;
             } elseif (is_array($parsedConfig)) {
