@@ -167,7 +167,7 @@ class Templater
             $context = new Context(
                 $templateFile,
                 $bindings,
-                $this->functions,
+                $this->functions
             );
 
             $content = $this->renderFile($context);
@@ -201,13 +201,13 @@ class Templater
     {
         // add current global config to context-bindings to allow usage in templates
         $context->bindings = array_replace_recursive($context->bindings, ['config' => $this->config->asArray()]);
-        $line = 0;
+        $lineno = 1;
 
         try {
             $templateContent = $context->template()->read();
-            $tokenStream = $this->tokenizer->tokenize($templateContent, $line);
+            $tokenStream = $this->tokenizer->tokenize($templateContent, $lineno);
 
-            $lines = $this->resolveStream($tokenStream, $context, $line);
+            $lines = $this->resolveStream($tokenStream, $context, $lineno);
             return implode('', $lines);
 
         } catch (RenderingException $exception) {
@@ -216,7 +216,7 @@ class Templater
             }
             throw $exception;
         } catch (Exception $exception) {
-            throw new RenderingException("Error rendering Template: {$exception->getMessage()}", $exception->getCode() > 0 ? $exception->getCode() : 400, $exception, $context->template(), $line);
+            throw new RenderingException("Error rendering Template: {$exception->getMessage()}", $exception->getCode() > 0 ? $exception->getCode() : 400, $exception, $context->template(), $lineno);
         }
     }
 
@@ -224,19 +224,19 @@ class Templater
      * processes a whole token-stream (complete template file)
      * @param TokenStream $stream
      * @param Context $context
-     * @param int|null &$line
+     * @param int|null &$lineno
      * @return string[]
      * @throws RenderingException
      */
-    private function resolveStream(TokenStream $stream, Context $context, ?int &$line = null): array
+    private function resolveStream(TokenStream $stream, Context $context, ?int &$lineno = null): array
     {
         $lines = [];
 
         while ($token = $stream->next()) {
 
             // expose current line number for better exception messages
-            if ($line !== null) {
-                $line = $token->line();
+            if ($lineno !== null) {
+                $lineno = $token->line();
             }
 
             if ($token instanceof Token) {
@@ -387,13 +387,21 @@ class Templater
         // check for return type
         if ($value === null) {
             return '';
-        } elseif (is_string($value)) {
+        }
+
+        if (is_string($value)) {
             return $value;
-        } elseif (is_bool($value)) {
+        }
+
+        if (is_bool($value)) {
             return $value ? 'true' : 'false';
-        } elseif (is_scalar($value)) {
+        }
+
+        if (is_scalar($value)) {
             return $value;
-        } elseif (is_object($value) && method_exists($value, '__toString')) {
+        }
+
+        if (is_object($value) && method_exists($value, '__toString')) {
             return (string)$value;
         }
 

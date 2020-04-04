@@ -76,6 +76,11 @@ abstract class Processor
         return true;
     }
 
+    public function getSymbols(): BaseSymbols
+    {
+        return $this->symbols;
+    }
+
     /**
      * @param Statement $statement
      * @param TokenStream $stream
@@ -101,8 +106,8 @@ abstract class Processor
         while ($token = $stream->next()) {
             if ($token instanceof BlockToken && $token->block()->is('{%', '%}')) {
 
-                $statement = new Statement($token, $statement->context);
-                if (static::isQualifiedEnd($statement)) {
+                $localStatement = new Statement($token, $statement->context);
+                if (static::isQualifiedEnd($localStatement)) {
 
                     // ends current processor
                     if ($branches === null) {
@@ -114,7 +119,7 @@ abstract class Processor
                     $this->symbols = new BranchSymbols($branches);
                     return $this;
 
-                } elseif (static::isQualifiedFork($statement)) {
+                } elseif (static::isQualifiedFork($localStatement)) {
 
                     // fork of current processor
                     if ($branches === null) {
@@ -124,14 +129,14 @@ abstract class Processor
                     }
 
                     $currentBranch = new BlockSymbols(
-                        $statement->matchedKeyword(),
-                        $statement->remainingTokens()
+                        $localStatement->matchedKeyword(),
+                        $localStatement->remainingTokens()
                     );
 
                 } else {
 
                     // starts new nested processor
-                    $currentBranch->content[] = $this->templater->resolveProcessorToken($statement, $stream);
+                    $currentBranch->content[] = $this->templater->resolveProcessorToken($localStatement, $stream);
 
                 }
 

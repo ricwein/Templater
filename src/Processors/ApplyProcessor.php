@@ -31,7 +31,7 @@ class ApplyProcessor extends Processor
         }
 
         foreach ($context->functions as $function) {
-            if ($function->getShortName() === $name || $function->getName() === $name) {
+            if ($function->getName() === $name) {
                 return $function;
             }
         }

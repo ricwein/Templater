@@ -44,6 +44,9 @@ class CoreFunctions
             'max' => 'max',
             'min' => 'min',
 
+            'escape' => [$this, 'escape'],
+            'e' => [$this, 'escape'],
+
             'even' => [$this, 'isEven'],
             'odd' => [$this, 'isOdd'],
             'defined' => [$this, 'isDefined'],
@@ -102,14 +105,10 @@ class CoreFunctions
             'directory' => [$this, 'getDirectory'],
         ];
 
-        $functions = [
-            new BaseFunction('escape', [$this, 'escape'], 'e'),
-        ];
-
+        $functions = [];
         foreach ($exposeFunctions as $name => $callable) {
             $functions[] = new BaseFunction($name, $callable);
         }
-
         return $functions;
     }
 

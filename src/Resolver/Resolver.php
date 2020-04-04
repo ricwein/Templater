@@ -533,7 +533,7 @@ class Resolver
         }
 
         foreach ($this->functions as $function) {
-            if ($function->getShortName() === $name || $function->getName() === $name) {
+            if ($function->getName() === $name) {
                 return $function;
             }
         }

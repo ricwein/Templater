@@ -8,7 +8,6 @@ use TypeError;
 class BaseFunction
 {
     private string $__name;
-    private ?string $__shortName;
 
     /**
      * @var callable
@@ -19,23 +18,16 @@ class BaseFunction
      * BaseFunction constructor.
      * @param string $name
      * @param callable $function
-     * @param string|null $shortName
      */
-    public function __construct(string $name, callable $function, ?string $shortName = null)
+    public function __construct(string $name, callable $function)
     {
         $this->__name = $name;
         $this->__function = $function;
-        $this->__shortName = $shortName;
     }
 
     public function getName(): string
     {
         return $this->__name;
-    }
-
-    public function getShortName(): ?string
-    {
-        return $this->__shortName;
     }
 
     /**

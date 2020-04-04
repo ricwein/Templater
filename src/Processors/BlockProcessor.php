@@ -7,6 +7,7 @@ use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
+use ricwein\Tokenizer\Result\BaseToken;
 
 class BlockProcessor extends Processor
 {
@@ -30,22 +31,36 @@ class BlockProcessor extends Processor
     public function process(Context $context): array
     {
         if (!$this->symbols instanceof BlockSymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+            throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
-        $headName = trim(implode('', $this->symbols->headTokens()));
-        $resolveContext = new Context($context->template(), $context->bindings, $context->functions, $context->environment);
+        $blockName = trim(implode('', $this->symbols->headTokens()));
+        $context->environment->addBlock($blockName, $this->symbols->content);
 
-        if (isset($context->environment['blocks'][$headName])) {
-
-            $parentContent = $context->environment['blocks'][$headName];
-            $resolveContext->functions['parent'] = new BaseFunction('parent', function () use ($parentContent): string {
-                return implode('', $parentContent);
-            });
+        /** @var array<int, array<BaseToken|Processor>> $blockVersions */
+        if (null === $blockVersions = $context->environment->getBlockVersions($blockName)) {
+            return $this->templater->resolveSymbols($this->symbols->content, $context);
         }
 
-        $blockContent = $this->templater->resolveSymbols($this->symbols->content, $resolveContext);
-        $context->environment['blocks'][$headName] = $blockContent;
-        return $blockContent;
+        if (null === $lastBlock = array_shift($blockVersions)) {
+            return $this->templater->resolveSymbols($this->symbols->content, $context);
+        }
+
+        $resolveContext = clone $context;
+        $resolveContext->functions['parent'] = new BaseFunction('parent', function () use (&$blockVersions, $resolveContext): string {
+            /** @var array<BaseToken|Processor> $lastBlock */
+            if (null === $lastBlock = array_shift($blockVersions)) {
+                return '';
+            }
+            return implode($this->templater->resolveSymbols($lastBlock, $resolveContext));
+        });
+
+
+        $resolved = $this->templater->resolveSymbols($lastBlock, $resolveContext);
+
+        $context->bindings = $resolveContext->bindings;
+        $context->environment = $resolveContext->environment;
+
+        return $resolved;
     }
 }
