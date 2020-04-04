@@ -61,12 +61,12 @@ class IfProcessor extends Processor
                     }
 
                     if ($context->expressionResolver()->resolve($conditionString, $line)) {
-                        return $this->templater->resolveSymbols($branch->content, $context);
+                        return $this->templateResolver->resolveSymbols($branch->content, $context);
                     }
                     break;
 
                 case 'else':
-                    return $this->templater->resolveSymbols($branch->content, $context);
+                    return $this->templateResolver->resolveSymbols($branch->content, $context);
             }
         }
 

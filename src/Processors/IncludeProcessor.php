@@ -39,7 +39,7 @@ class IncludeProcessor extends Processor
 
         /** @var File|null $file */
         if (is_string($filename)) {
-            $file = $this->templater->getRelativeTemplateFile($context->template()->directory(), $filename);
+            $file = $this->templateResolver->getRelativeTemplateFile($context->template()->directory(), $filename);
         } else if ($filename instanceof File) {
             $file = $filename;
         }
@@ -120,7 +120,7 @@ class IncludeProcessor extends Processor
         );
 
         return [
-            $this->templater->renderFile($subContext)
+            $this->templateResolver->renderFile($subContext)
         ];
     }
 }

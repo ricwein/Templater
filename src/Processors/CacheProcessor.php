@@ -39,7 +39,7 @@ class CacheProcessor extends Processor
             $context->template()->getTime(),
             is_scalar($name) ? $name : '',
             $token->line(),
-            $this->templater->getConfig()->debug ? 1 : 0,
+            $this->templateResolver->getConfig()->debug ? 1 : 0,
         );
 
         return str_replace(
@@ -64,10 +64,10 @@ class CacheProcessor extends Processor
             throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
-        $cache = $this->templater->getCache();
+        $cache = $this->templateResolver->getCache();
 
         if ($cache === null) {
-            return $this->templater->resolveSymbols($this->symbols->content, $context);
+            return $this->templateResolver->resolveSymbols($this->symbols->content, $context);
         }
 
         $head = $this->symbols->headTokens();
@@ -81,7 +81,7 @@ class CacheProcessor extends Processor
             return $content;
         }
 
-        $config = ['time' => $this->templater->getConfig()->cacheDuration];
+        $config = ['time' => $this->templateResolver->getConfig()->cacheDuration];
 
         // parse cache-config from statement if available
         if (count($head) > 0) {
@@ -95,7 +95,7 @@ class CacheProcessor extends Processor
         }
 
         // parse cache-content
-        $content = $this->templater->resolveSymbols($this->symbols->content, $context);
+        $content = $this->templateResolver->resolveSymbols($this->symbols->content, $context);
 
         // save cache
         $cacheItem->set($content);

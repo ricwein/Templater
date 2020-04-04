@@ -13,7 +13,7 @@ use ricwein\Templater\Processors\Symbols\BaseSymbols;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
 use ricwein\Templater\Processors\Symbols\BranchSymbols;
 use ricwein\Templater\Processors\Symbols\HeadOnlySymbols;
-use ricwein\Templater\Templater;
+use ricwein\Templater\Resolver\TemplateResolver;
 use ricwein\Tokenizer\Result\BlockToken;
 use ricwein\Tokenizer\Result\TokenStream;
 
@@ -22,16 +22,16 @@ use ricwein\Tokenizer\Result\TokenStream;
  */
 abstract class Processor
 {
-    protected Templater $templater;
+    protected TemplateResolver $templateResolver;
 
     /**
      * @var BaseSymbols|null
      */
     protected ?BaseSymbols $symbols = null;
 
-    public function __construct(Templater $templater)
+    public function __construct(TemplateResolver $templateResolver)
     {
-        $this->templater = $templater;
+        $this->templateResolver = $templateResolver;
     }
 
     abstract public static function startKeyword(): string;
@@ -69,11 +69,7 @@ abstract class Processor
 
     protected function requiresEnd(Statement $statement): bool
     {
-        if (static::endKeyword() === null) {
-            return false;
-        }
-
-        return true;
+        return (static::endKeyword() !== null);
     }
 
     public function getSymbols(): BaseSymbols
@@ -96,10 +92,8 @@ abstract class Processor
             return $this;
         }
 
-
         /** @var array|null $branches */
         $branches = null;
-        $isClosed = false;
         $currentBranch = new BlockSymbols(static::startKeyword(), $headTokens);
 
         // search endfor statement and save loop-content tokens for later processing
@@ -119,7 +113,9 @@ abstract class Processor
                     $this->symbols = new BranchSymbols($branches);
                     return $this;
 
-                } elseif (static::isQualifiedFork($localStatement)) {
+                }
+
+                if (static::isQualifiedFork($localStatement)) {
 
                     // fork of current processor
                     if ($branches === null) {
@@ -136,7 +132,7 @@ abstract class Processor
                 } else {
 
                     // starts new nested processor
-                    $currentBranch->content[] = $this->templater->resolveProcessorToken($localStatement, $stream);
+                    $currentBranch->content[] = $this->templateResolver->resolveProcessorToken($localStatement, $stream);
 
                 }
 
@@ -145,10 +141,7 @@ abstract class Processor
             }
         }
 
-        if (!$isClosed) {
-            throw new RuntimeException("Unexpected end of template. Missing '{$this->endKeyword()}' tag.", 500);
-        }
-
+        throw new RuntimeException(sprintf('Unexpected end of template. Missing "%s" tag.', static::endKeyword()), 500);
     }
 
     /**

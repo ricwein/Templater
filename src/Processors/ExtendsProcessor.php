@@ -30,7 +30,7 @@ class ExtendsProcessor extends IncludeProcessor
 
                 $localStatement = new Statement($token, $statement->context);
 
-                $processor = $this->templater->resolveProcessorToken($localStatement, $stream);
+                $processor = $this->templateResolver->resolveProcessorToken($localStatement, $stream);
                 if (!$processor instanceof BlockProcessor) {
                     throw new RenderingException(sprintf('Only {%% block %%} statements and comments {# #} are allowed inside an template-extension, but got: %s', trim($token)), 500, null, $statement->context->template(), $token->line());
                 }
@@ -81,7 +81,7 @@ class ExtendsProcessor extends IncludeProcessor
         $subContext = $context->copyWithTemplate($file);
 
         // resolve current page blocks, writeback of block content into context-environments
-        $baseContent = $this->templater->renderFile($subContext);
+        $baseContent = $this->templateResolver->renderFile($subContext);
 
         return [$baseContent];
     }

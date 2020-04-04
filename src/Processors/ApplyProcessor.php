@@ -60,7 +60,7 @@ class ApplyProcessor extends Processor
             throw new RenderingException("Call to unknown function: {$functionName}()", 400, null, $context->template(), reset($headTokens)->line());
         }
 
-        $lines = $this->templater->resolveSymbols($this->symbols->content, $context);
+        $lines = $this->templateResolver->resolveSymbols($this->symbols->content, $context);
         $content = implode('', $lines);
 
         return [

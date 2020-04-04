@@ -17,11 +17,13 @@ use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
 use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\Resolver\TemplateResolver;
 use Traversable;
 
 class CoreFunctions
 {
     private Config $config;
+
     private ?Context $context = null;
 
     public function __construct(Config $config)
@@ -33,7 +35,6 @@ class CoreFunctions
     {
         $this->context = $context;
     }
-
 
     /**
      * @return BaseFunction[]
@@ -131,7 +132,9 @@ class CoreFunctions
     {
         if (!empty($delimiter) && is_numeric($delimiter) && (strlen($delimiter) === strlen((string)(int)$delimiter))) {
             return str_split($string, (int)$delimiter);
-        } else if (!empty($delimiter) && is_string($delimiter)) {
+        }
+
+        if (!empty($delimiter) && is_string($delimiter)) {
             return $limit !== null ? explode($delimiter, $string, $limit) : explode($delimiter, $string);
         }
 
@@ -148,11 +151,13 @@ class CoreFunctions
     {
         if (is_array($input)) {
             return array_slice($input, $start, $length, $preserveKeys);
-        } elseif (is_string($input)) {
+        }
+
+        if (is_string($input)) {
             return mb_substr($input, $start, $length);
         }
 
-        throw new UnexpectedValueException(sprintf("Invalid Datatype for slice() input: %s", gettype($input)), 500);
+        throw new UnexpectedValueException(sprintf('Invalid Datatype for slice() input: %s', gettype($input)), 500);
     }
 
     public function escape($string): string
@@ -313,9 +318,9 @@ class CoreFunctions
             case 'common':
                 return round($value, $precision);
             case 'floor':
-                return floor($value * pow(10, $precision)) / pow(10, $precision);
+                return floor($value * (10 ** $precision)) / (10 ** $precision);
             case 'ceil':
-                return ceil($value * pow(10, $precision)) / pow(10, $precision);
+                return ceil($value * (10 ** $precision)) / (10 ** $precision);
         }
 
         throw new UnexpectedValueException("Invalid rounding method: {$method}", 500);
@@ -324,7 +329,7 @@ class CoreFunctions
     public function mapConstant(string $constant, ?object $class = null)
     {
         if ($class !== null) {
-            $constant = get_class($class) . '::' . $constant;
+            $constant = sprintf('%s::%s', get_class($class), $constant);
         }
 
         return constant($constant);

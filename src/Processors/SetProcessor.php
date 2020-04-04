@@ -48,7 +48,7 @@ class SetProcessor extends Processor
 
         if ($this->symbols instanceof BlockSymbols) {
 
-            $value = implode('', $this->templater->resolveSymbols($this->symbols->content, $context));
+            $value = implode('', $this->templateResolver->resolveSymbols($this->symbols->content, $context));
 
         } elseif ($this->symbols instanceof HeadOnlySymbols) {
 

@@ -111,14 +111,14 @@ class ForLoopProcessor extends Processor
                 }
             }
 
-            $loopIteration = $this->templater->resolveSymbols($forBlock->content, $loopContext);
+            $loopIteration = $this->templateResolver->resolveSymbols($forBlock->content, $loopContext);
             $loopIterations[] = implode('', $loopIteration);
 
             $hasAtLeastOneIteration = true;
         }
 
         if (!$hasAtLeastOneIteration && $elseBlock !== null) {
-            return $this->templater->resolveSymbols($elseBlock->content, $context);
+            return $this->templateResolver->resolveSymbols($elseBlock->content, $context);
         }
 
         return $loopIterations;
