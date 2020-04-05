@@ -202,16 +202,16 @@
         },
         {
             "name": "ricwein/filesystem",
-            "version": "2.1.1",
+            "version": "2.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ricwein/FileSystem.git",
-                "reference": "96224f201a0e46ae3a12ae40eaa640084afb5f44"
+                "reference": "5ad0f1adf4ba01ad87dfa1d7f0381376e28fa5b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ricwein/FileSystem/zipball/96224f201a0e46ae3a12ae40eaa640084afb5f44",
-                "reference": "96224f201a0e46ae3a12ae40eaa640084afb5f44",
+                "url": "https://api.github.com/repos/ricwein/FileSystem/zipball/5ad0f1adf4ba01ad87dfa1d7f0381376e28fa5b8",
+                "reference": "5ad0f1adf4ba01ad87dfa1d7f0381376e28fa5b8",
                 "shasum": ""
             },
             "require": {
@@ -246,7 +246,7 @@
                 }
             ],
             "description": "Filesystem abstraction layer",
-            "time": "2020-04-01T13:15:42+00:00"
+            "time": "2020-04-05T20:11:30+00:00"
         },
         {
             "name": "ricwein/tokenizer",

@@ -51,6 +51,7 @@ class BlockProcessor extends Processor
         }
 
         // TODO: refactor the following code to allow multiple parent() calls in one block
+
         $resolveContext = clone $context;
         $resolveContext->functions['parent'] = new BaseFunction('parent', function () use (&$blockVersions, $resolveContext): string {
 

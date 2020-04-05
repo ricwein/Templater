@@ -34,8 +34,8 @@ class CacheProcessor extends Processor
         $name = $context->expressionResolver()->resolve($token->content(), $token->line());
 
         $key = sprintf(
-            "view_%s|%d|%s.%d|%d",
-            str_replace(['/', '\\'], '.', ltrim($context->template()->path()->filepath, '/')),
+            'view_%s|%d|%s.%d|%d',
+            str_replace(['/', '\\'], '.', ltrim($context->template()->path()->real, '/')),
             $context->template()->getTime(),
             is_scalar($name) ? $name : '',
             $token->line(),
@@ -61,7 +61,7 @@ class CacheProcessor extends Processor
     public function process(Context $context): array
     {
         if (!$this->symbols instanceof BlockSymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+            throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
         $cache = $this->templateResolver->getCache();
@@ -77,8 +77,8 @@ class CacheProcessor extends Processor
         $cacheItem = $cache->getItem($cacheKey);
 
         // cache-hit!
-        if (null !== $content = $cacheItem->get()) {
-            return $content;
+        if ($cacheItem->isHit()) {
+            return $cacheItem->get();
         }
 
         $config = ['time' => $this->templateResolver->getConfig()->cacheDuration];

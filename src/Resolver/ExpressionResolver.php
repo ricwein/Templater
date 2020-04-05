@@ -269,7 +269,7 @@ class ExpressionResolver
 
         /** @var Symbol|null $lastSymbol */
         $lastSymbol = null;
-        $value = ($predecessorSymbol !== null) ? $predecessorSymbol : new ResolvedSymbol(null, false, ResolvedSymbol::TYPE_NULL);
+        $value = $predecessorSymbol ?? new ResolvedSymbol(null, false, ResolvedSymbol::TYPE_NULL);
         $keyPathFinder = new KeypathFinder($this->bindings);
 
         // iterate through list of symbols
@@ -286,7 +286,7 @@ class ExpressionResolver
             } else if ($symbol instanceof Token) {
                 $resolvedSymbols = [$this->resolveToken($symbol, $value)];
             } else {
-                throw new RuntimeException(sprintf("FATAL: Invalid Symbol type: %s.", get_class($symbol)), 500);
+                throw new RuntimeException(sprintf('FATAL: Invalid Symbol type: %s.', get_class($symbol)), 500);
             }
 
             foreach ($resolvedSymbols as $resolvedSymbol) {
@@ -511,15 +511,16 @@ class ExpressionResolver
         }
 
         $parameters = $this->resolveParameterList($block->tokens());
+        $valueParameter = ($value === null) ? [] : [$value->value()];
 
         switch ($handleVar) {
 
             case static::PREPEND_VAR:
-                $parameters = array_merge([$value->value()], $parameters);
+                $parameters = array_merge($valueParameter, $parameters);
                 break;
 
             case static::APPEND_VAR:
-                $parameters = array_merge($parameters, [$value->value()]);
+                $parameters = array_merge($parameters, $valueParameter);
                 break;
         }
 
@@ -571,7 +572,7 @@ class ExpressionResolver
 
                 $key = $this->resolveTokens($unresolvedSymbols)->value();
                 $unresolvedSymbols = [];
-            } else if ($symbol->delimiter() !== null && $symbol->delimiter()->is(',')) {
+            } elseif ($symbol->delimiter() !== null && $symbol->delimiter()->is(',')) {
                 if ($key === null) {
                     throw new RuntimeException("Found unexpected delimiter '{$symbol->delimiter()}' in inline assoc definition: {$block}", 500);
                 }

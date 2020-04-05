@@ -8,6 +8,7 @@ use RecursiveIteratorIterator;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
 use ricwein\FileSystem\Exceptions\Exception;
+use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
 use ricwein\FileSystem\File;
@@ -17,7 +18,6 @@ use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
 use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
-use ricwein\Templater\Resolver\TemplateResolver;
 use Traversable;
 
 class CoreFunctions
@@ -72,7 +72,7 @@ class CoreFunctions
             'scalar' => 'is_scalar',
             'instanceof' => [$this, 'isInstanceof'],
 
-            'count' => 'count',
+            'count' => [$this, 'count'],
             'length' => [$this, 'length'],
             'sum' => 'array_sum',
             'keys' => 'array_keys',
@@ -112,6 +112,8 @@ class CoreFunctions
 
             'file' => [$this, 'getFile'],
             'directory' => [$this, 'getDirectory'],
+            'command' => [$this, 'getCommand'],
+            'cli' => [$this, 'getCommand'],
 
             'block' => [$this, 'getBlock']
         ];
@@ -126,6 +128,19 @@ class CoreFunctions
     public function join(array $array, string $glue): string
     {
         return implode($glue, $array);
+    }
+
+    public function count($array): int
+    {
+        if (is_countable($array)) {
+            return count($array);
+        }
+
+        if ($array instanceof Traversable) {
+            return iterator_count($array);
+        }
+
+        return 0;
     }
 
     public function split(string $string, string $delimiter = '', ?int $limit = null): array
@@ -336,33 +351,102 @@ class CoreFunctions
     }
 
     /**
-     * @inheritDoc
-     * @throws AccessDeniedException
-     * @throws Exception
+     * @param array<string|Storage>|string|Storage $path
+     * @return Storage|null
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
-    public function getFile(string ...$path): File
+    private function fetchStoragePath($path): ?Storage
     {
-        $storage = PathFinder::try([
-            new Storage\Disk(...$path),
-            new Storage\Disk\Current(...$path),
-        ]);
+        $paths = [];
 
-        return new File($storage, Constraint::STRICT);
+        if (is_array($path)) {
+
+            if ($this->context !== null) {
+                $paths[] = new Storage\Disk($this->context->template()->path()->directory, ...$path);
+            }
+            $paths[] = new Storage\Disk(...$path);
+
+        } else {
+
+            if ($this->context !== null) {
+                $paths[] = new Storage\Disk($this->context->template()->path()->directory, $path);
+            }
+            $paths[] = new Storage\Disk($path);
+
+        }
+
+        try {
+            return PathFinder::try($paths);
+        } catch (FileNotFoundException $e) {
+            return null;
+        }
     }
 
     /**
      * @inheritDoc
+     * @param array<string|Storage>|string|Storage|null $path
      * @throws AccessDeniedException
      * @throws Exception
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
-    public function getDirectory(string ...$path): Directory
+    public function getFile($path = null, int $constraints = Constraint::STRICT): ?File
     {
-        $storage = new Storage\Disk($path);
-        return new Directory($storage, Constraint::STRICT);
+        if ($path === null && $this->context !== null) {
+            return new File(clone $this->context->template()->storage(), $constraints);
+        }
+
+        if ($path !== null && null !== $storage = $this->fetchStoragePath($path)) {
+            return new File($storage, $constraints);
+        }
+
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     * @param array<string|Storage>|string|Storage|null $path
+     * @throws AccessDeniedException
+     * @throws Exception
+     * @throws FileSystemUnexpectedValueException
+     * @throws RuntimeException
+     */
+    public function getDirectory($path = null, int $constraints = Constraint::STRICT): Directory
+    {
+        if ($path === null && $this->context !== null) {
+            return new Directory($this->context->template()->directory($constraints)->storage(), $constraints);
+        }
+
+        if ($path !== null && null !== $storage = $this->fetchStoragePath($path)) {
+            return new Directory($storage, $constraints);
+        }
+
+        return null;
+    }
+
+    /**
+     * @inheritDoc
+     * @param array<string|Storage>|string|Storage|null $path
+     * @throws AccessDeniedException
+     * @throws Exception
+     * @throws FileSystemUnexpectedValueException
+     * @throws RuntimeException
+     */
+    public function getCommand($binPath, $path = null, int $constraints = Constraint::STRICT): Directory
+    {
+        if ($path === null && $this->context !== null) {
+            $storage = $this->context->template()->directory($constraints)->storage();
+            if ($storage instanceof Storage\Disk) {
+                return new Directory\Command($storage, $constraints, $binPath);
+            }
+        }
+
+        if ($path !== null && (null !== $storage = $this->fetchStoragePath($path)) && $storage instanceof Storage\Disk) {
+            return new Directory\Command($storage, $constraints, $binPath);
+        }
+
+        return null;
     }
 
     public function isEven($number): bool
@@ -372,7 +456,7 @@ class CoreFunctions
 
     public function isOdd($number): bool
     {
-        return !$this->isEven($number);
+        return $number % 2 !== 0;
     }
 
     public function isDefined($value): bool

@@ -40,7 +40,7 @@ class BaseFunction
         try {
             return call_user_func_array($this->__function, $parameters);
         } catch (TypeError $exception) {
-            throw new RuntimeException("Function parameter type mismatch!", 500, $exception);
+            throw new RuntimeException('Function parameter type mismatch!', 500, $exception);
         }
 
     }

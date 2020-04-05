@@ -13,7 +13,6 @@ use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Processors\Symbols\HeadOnlySymbols;
 use ricwein\Tokenizer\Result\BaseToken;
-use ricwein\Tokenizer\Result\Token;
 
 class IncludeProcessor extends Processor
 {
@@ -103,11 +102,12 @@ class IncludeProcessor extends Processor
     public function process(Context $context): array
     {
         if (!$this->symbols instanceof HeadOnlySymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+            throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
         $headTokens = $this->symbols->headTokens();
         $filenameToken = array_shift($headTokens);
+
         $file = $this->getFile($filenameToken, $context);
         [$only, $parameters] = $this->parseParameters($headTokens, $context);
 

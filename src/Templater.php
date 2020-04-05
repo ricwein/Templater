@@ -196,7 +196,7 @@ class Templater
     public static function getTemplateFile(Directory $baseDir, ?Directory $relativeDir, string $filename, string $extension): ?File
     {
         /** @var Directory[] $dirs */
-        $dirs = array_filter([$baseDir, $relativeDir], function (?Directory $dir): bool {
+        $dirs = array_filter([$baseDir, $relativeDir], static function (?Directory $dir): bool {
             return $dir !== null;
         });
 
