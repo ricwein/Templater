@@ -103,6 +103,7 @@ class TemplateResolver extends Resolver
     public function renderFile(Context $context): string
     {
         $this->coreFunctions->setContext($context);
+        $this->coreFunctions->setTemplateResolver($this);
 
         // add current global config to context-bindings to allow usage in templates
         $context->bindings = array_replace_recursive($context->bindings, ['config' => $this->config->asArray()]);
@@ -278,7 +279,7 @@ class TemplateResolver extends Resolver
             }
         }
 
-        throw new RuntimeException(sprintf("Found unsupported processor statement: %s", implode(' ', $statement->keywordTokens())), 500);
+        throw new RuntimeException(sprintf('Found unsupported processor statement: %s', implode(' ', $statement->keywordTokens())), 500);
     }
 
     /**

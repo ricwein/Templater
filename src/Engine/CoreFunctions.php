@@ -16,15 +16,19 @@ use ricwein\FileSystem\Helper\Constraint;
 use ricwein\FileSystem\Helper\PathFinder;
 use ricwein\FileSystem\Storage;
 use ricwein\Templater\Config;
+use ricwein\Templater\Exceptions\RuntimeException as TemplateRuntimeException;
 use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
+use ricwein\Templater\Resolver\TemplateResolver;
 use Traversable;
+use function foo\func;
 
 class CoreFunctions
 {
     private Config $config;
 
     private ?Context $context = null;
+    private ?TemplateResolver $templateResolver = null;
 
     public function __construct(Config $config)
     {
@@ -34,6 +38,11 @@ class CoreFunctions
     public function setContext(Context $context): void
     {
         $this->context = $context;
+    }
+
+    public function setTemplateResolver(TemplateResolver $templateResolver): void
+    {
+        $this->templateResolver = $templateResolver;
     }
 
     /**
@@ -101,6 +110,8 @@ class CoreFunctions
             'striptags' => 'strip_tags',
             'replace' => [$this, 'replace'],
             'spaceless' => [$this, 'spaceless'],
+            'removeemptylines' => [$this, 'removeEmptyLines'],
+            'remove_empty_lines' => [$this, 'removeEmptyLines'],
 
             'json_encode' => 'json_encode',
             'json_decode' => 'json_decode',
@@ -320,6 +331,27 @@ class CoreFunctions
         return trim(preg_replace('/>\s+</', '><', $content));
     }
 
+    public function removeEmptyLines(string $content, int $consecutivelyLines = 1): string
+    {
+        $lines = explode(PHP_EOL, $content);
+
+        /** @var bool[] $prevLines */
+        $prevLines = array_fill(0, $consecutivelyLines, true);
+        $lines = array_filter($lines, static function (string $line) use (&$prevLines): string {
+            $prevLines[] = empty(trim($line));
+            array_shift($prevLines);
+
+            foreach ($prevLines as $prevLine) {
+                if (!$prevLine) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        return implode(PHP_EOL, $lines);
+    }
+
     /**
      * @param float $value
      * @param int $precision
@@ -481,7 +513,11 @@ class CoreFunctions
 
     /**
      * @inheritDoc
+     * @param string $blockName
+     * @return string
      * @throws TemplatingException
+     * @throws UnexpectedValueException
+     * @throws TemplateRuntimeException
      */
     public function getBlock(string $blockName): string
     {
@@ -491,13 +527,18 @@ class CoreFunctions
             throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Missing a proper context.', $blockName), 500);
         }
 
-        if (null === $block = $this->context->environment->getResolvedBlock($blockName)) {
-            if (null !== $this->context->environment->getBlockVersions($blockName)) {
-                throw new TemplatingException(sprintf('Unable to fetch block for name: %s. The block must be finished befor befor it can be accessed with the block() function.', $blockName), 500);
-            }
-            throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Unknown block.', $blockName), 500);
+        if (null !== $block = $this->context->environment->getResolvedBlock($blockName)) {
+            return $block;
         }
 
-        return $block;
+        if ($this->templateResolver !== null && null !== $block = $this->context->resolveBlock($blockName, $this->templateResolver)) {
+            return $block;
+        }
+
+        if (null !== $this->context->environment->getBlockVersions($blockName)) {
+            throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Unable to resolve block in Runtime.', $blockName), 500);
+        }
+
+        throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Unknown block.', $blockName), 500);
     }
 }

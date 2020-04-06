@@ -50,7 +50,7 @@ class ApplyProcessor extends Processor
     public function process(Context $context): array
     {
         if (!$this->symbols instanceof BlockSymbols) {
-            throw new RuntimeException(sprintf("Unsupported Processor-Symbols of type: %s", substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
+            throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
         $headTokens = $this->symbols->headTokens();

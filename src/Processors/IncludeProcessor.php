@@ -109,8 +109,8 @@ class IncludeProcessor extends Processor
         $parameterTokens = $this->symbols->headTokens();
         $filenameTokens = [];
         while (true) {
-            $token = $parameterTokens[array_key_first($parameterTokens)];
-            if (in_array(trim($token->content()), ['with', 'only'], true)) {
+            $firstKey = array_key_first($parameterTokens);
+            if ($firstKey === null || in_array(trim($parameterTokens[$firstKey]->content()), ['with', 'only'], true)) {
                 break;
             }
             $filenameTokens[] = array_shift($parameterTokens);

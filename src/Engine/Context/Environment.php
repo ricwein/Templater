@@ -29,39 +29,39 @@ class Environment
     }
 
     /**
-     * @param string $name
+     * @param string $blockName
      * @param array<BaseToken|Processor> $block
      */
-    public function addBlock(string $name, array $block): void
+    public function addBlock(string $blockName, array $block): void
     {
-        if (!isset($this->blocks[$name])) {
-            $this->blocks[$name] = [];
+        if (!isset($this->blocks[$blockName])) {
+            $this->blocks[$blockName] = [];
         }
-        $this->blocks[$name][] = $block;
+        $this->blocks[$blockName][] = $block;
     }
 
     /**
-     * @param string $name
+     * @param string $blockName
      * @return null|array<int, array<BaseToken|Processor>>
      */
-    public function getBlockVersions(string $name): ?array
+    public function getBlockVersions(string $blockName): ?array
     {
-        if (!isset($this->blocks[$name])) {
+        if (!isset($this->blocks[$blockName])) {
             return null;
         }
 
-        return $this->blocks[$name];
+        return $this->blocks[$blockName];
     }
 
-    public function addResolvedBlock(string $name, string $content): void
+    public function addResolvedBlock(string $blockName, string $content): void
     {
-        $this->resolvedBlocks[$name] = $content;
+        $this->resolvedBlocks[$blockName] = $content;
     }
 
-    public function getResolvedBlock(string $name): ?string
+    public function getResolvedBlock(string $blockName): ?string
     {
-        if (isset($this->resolvedBlocks[$name])) {
-            return $this->resolvedBlocks[$name];
+        if (isset($this->resolvedBlocks[$blockName])) {
+            return $this->resolvedBlocks[$blockName];
         }
         return null;
     }

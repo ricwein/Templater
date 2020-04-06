@@ -74,8 +74,8 @@ class CacheProcessor extends Processor
         $optionTokens = $this->symbols->headTokens();
         $nameTokens = [];
         while (true) {
-            $token = $optionTokens[array_key_first($optionTokens)];
-            if (is_numeric($token->content()) || strpos($token->content(), '{') === 0 || strpos($token->content(), '[') === 0) {
+            $firstKey = array_key_first($optionTokens);
+            if ($firstKey === null || is_numeric($optionTokens[$firstKey]->content()) || strpos($optionTokens[$firstKey]->content(), '{') === 0 || strpos($optionTokens[$firstKey]->content(), '[') === 0) {
                 break;
             }
             $nameTokens[] = array_shift($optionTokens);
