@@ -22,7 +22,7 @@ class IncludeProcessor extends Processor
     }
 
     /**
-     * @param BaseToken $token
+     * @param BaseToken[] $tokens
      * @param Context $context
      * @return File
      * @throws AccessDeniedException
@@ -32,18 +32,19 @@ class IncludeProcessor extends Processor
      * @throws RuntimeException
      * @throws UnexpectedValueException
      */
-    protected function getFile(BaseToken $token, Context $context): File
+    protected function getFile(array $tokens, Context $context): File
     {
-        $filename = $context->expressionResolver()->resolve((string)$token, $token->line());
+        $firstToken = reset($tokens);
+        $filename = $context->expressionResolver()->resolve(implode('', $tokens), $firstToken->line());
 
         /** @var File|null $file */
         if (is_string($filename)) {
             $file = $this->templateResolver->getRelativeTemplateFile($context->template()->directory(), $filename);
-        } else if ($filename instanceof File) {
+        } elseif ($filename instanceof File) {
             $file = $filename;
         }
 
-        if ($file === null) {
+        if ($file === null || !$file->isFile()) {
             throw new RuntimeException(sprintf('Include of file "%s" failed: File Not Found', $filename), 404);
         }
 
@@ -105,11 +106,18 @@ class IncludeProcessor extends Processor
             throw new RuntimeException(sprintf('Unsupported Processor-Symbols of type: %s', substr(strrchr(get_class($this->symbols), "\\"), 1)), 500);
         }
 
-        $headTokens = $this->symbols->headTokens();
-        $filenameToken = array_shift($headTokens);
+        $parameterTokens = $this->symbols->headTokens();
+        $filenameTokens = [];
+        while (true) {
+            $token = $parameterTokens[array_key_first($parameterTokens)];
+            if (in_array(trim($token->content()), ['with', 'only'], true)) {
+                break;
+            }
+            $filenameTokens[] = array_shift($parameterTokens);
+        }
 
-        $file = $this->getFile($filenameToken, $context);
-        [$only, $parameters] = $this->parseParameters($headTokens, $context);
+        $file = $this->getFile($filenameTokens, $context);
+        [$only, $parameters] = $this->parseParameters($parameterTokens, $context);
 
         // create new sub-only context
         $subContext = new Context(

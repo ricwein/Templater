@@ -5,7 +5,7 @@ namespace ricwein\Templater\Processors;
 
 
 use ricwein\Templater\Engine\Context;
-use ricwein\Templater\Engine\Statement;
+use ricwein\Templater\Resolver\Statement;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;

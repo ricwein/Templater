@@ -17,7 +17,7 @@ use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Tokenizer;
 
-class ExpressionResolver
+class ExpressionResolver extends Resolver
 {
     private const IGNORE_VAR = 0b00;
     private const APPEND_VAR = 0b01;
@@ -26,18 +26,16 @@ class ExpressionResolver
     private array $bindings;
 
     /**
-     * @var BaseFunction[]
+     * @var array<string, BaseFunction>
      */
     private array $functions;
 
     private static ?array $operators = null;
 
-    private Tokenizer $tokenizer;
-
     /**
      * Resolver constructor.
      * @param array $bindings
-     * @param array $functions
+     * @param array<string, BaseFunction> $functions
      * @throws UnexpectedValueException
      */
     public function __construct(array $bindings = [], array $functions = [])
@@ -292,15 +290,16 @@ class ExpressionResolver
             foreach ($resolvedSymbols as $resolvedSymbol) {
 
                 // check if the last symbol is part of a bindings keypath
+                $hasKeypathDelimiter = ($symbol->delimiter() === null || $symbol->delimiter()->is('.'));
                 if (
-                    !$resolvedSymbol->interruptKeyPath()
+                    $hasKeypathDelimiter
+                    && !$resolvedSymbol->interruptKeyPath()
                     && $resolvedSymbol->is(ResolvedSymbol::ANY_KEYPATH_PART)
-                    && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))
                 ) {
 
                     // overload current keypath bindings with the previous symbol, if it was an inline array and
                     // the current symbol is a keypath-part (.part) which points into this array
-                    if ($lastSymbol !== null && $lastSymbol->is(ResolvedSymbol::ANY_ACCESSIBLE) && ($symbol->delimiter() === null || $symbol->delimiter()->is('.'))) {
+                    if ($hasKeypathDelimiter && $lastSymbol !== null && $lastSymbol->is(ResolvedSymbol::ANY_ACCESSIBLE)) {
                         $keyPathFinder = new KeypathFinder($lastSymbol->value());
                     }
 

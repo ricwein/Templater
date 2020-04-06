@@ -3,7 +3,7 @@
 namespace ricwein\Templater\Processors;
 
 use ricwein\Templater\Engine\Context;
-use ricwein\Templater\Engine\Statement;
+use ricwein\Templater\Resolver\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Processors\Symbols\BlockSymbols;
@@ -74,8 +74,7 @@ class ExtendsProcessor extends IncludeProcessor
         $this->extractBlockIntoContext($this->symbols->content, $context);
 
         $headTokens = $this->symbols->headTokens();
-        $filenameToken = array_shift($headTokens);
-        $file = $this->getFile($filenameToken, $context);
+        $file = $this->getFile($headTokens, $context);
 
         // create new sub-only context
         $subContext = $context->copyWithTemplate($file);

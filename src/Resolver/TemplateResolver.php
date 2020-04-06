@@ -14,7 +14,6 @@ use ricwein\Templater\Config;
 use ricwein\Templater\Engine\BaseFunction;
 use ricwein\Templater\Engine\Context;
 use ricwein\Templater\Engine\CoreFunctions;
-use ricwein\Templater\Engine\Statement;
 use ricwein\Templater\Exceptions\RenderingException;
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
@@ -27,10 +26,9 @@ use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\TokenStream;
 use ricwein\Tokenizer\Tokenizer;
 
-class TemplateResolver
+class TemplateResolver extends Resolver
 {
     private Config $config;
-    private Tokenizer $tokenizer;
     protected ?ExtendedCacheItemPoolInterface $cache;
     protected Directory $templateDir;
 

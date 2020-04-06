@@ -1,8 +1,6 @@
 <?php
 
-
 namespace ricwein\Templater\Engine;
-
 
 use ricwein\Templater\Exceptions\RuntimeException;
 use ricwein\Templater\Resolver\Symbol\ResolvedSymbol;

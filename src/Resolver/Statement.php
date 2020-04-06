@@ -1,7 +1,8 @@
 <?php
 
-namespace ricwein\Templater\Engine;
+namespace ricwein\Templater\Resolver;
 
+use ricwein\Templater\Engine\Context;
 use ricwein\Tokenizer\InputSymbols\Delimiter;
 use ricwein\Tokenizer\Result\BaseToken;
 use ricwein\Tokenizer\Result\BlockToken;
@@ -9,7 +10,7 @@ use ricwein\Tokenizer\Result\Token;
 use ricwein\Tokenizer\Result\TokenStream;
 use ricwein\Tokenizer\Tokenizer;
 
-class Statement
+class Statement extends Resolver
 {
     private BlockToken $token;
     private ?TokenStream $stream = null;
@@ -25,6 +26,7 @@ class Statement
     {
         $this->token = $token;
         $this->context = $context;
+        $this->tokenizer = new Tokenizer([new Delimiter(' '), new Delimiter(PHP_EOL)], []);
     }
 
     public function content(): string
@@ -44,8 +46,7 @@ class Statement
             return $this->stream;
         }
 
-        $tokenizer = new Tokenizer([new Delimiter(' '), new Delimiter(PHP_EOL)], []);
-        $this->stream = $tokenizer->tokenize($this->content(), $this->line());
+        $this->stream = $this->tokenizer->tokenize($this->content(), $this->line());
         return $this->stream;
     }
 

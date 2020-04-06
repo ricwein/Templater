@@ -23,22 +23,23 @@ class CacheProcessor extends Processor
     }
 
     /**
-     * @param BaseToken $token
+     * @param BaseToken[] $tokens
      * @param Context $context
      * @return string
      * @throws FileSystemRuntimeException
      * @throws RuntimeException
      */
-    private function getCacheKey(BaseToken $token, Context $context): string
+    private function getCacheKey(array $tokens, Context $context): string
     {
-        $name = $context->expressionResolver()->resolve($token->content(), $token->line());
+        $firstToken = reset($tokens);
+        $name = $context->expressionResolver()->resolve(implode('', $tokens), $firstToken->line());
 
         $key = sprintf(
             'view_%s|%d|%s.%d|%d',
-            str_replace(['/', '\\'], '.', ltrim($context->template()->path()->real, '/')),
+            ltrim($context->template()->path()->real, '/'),
             $context->template()->getTime(),
             is_scalar($name) ? $name : '',
-            $token->line(),
+            $firstToken->line(),
             $this->templateResolver->getConfig()->debug ? 1 : 0,
         );
 
@@ -70,10 +71,17 @@ class CacheProcessor extends Processor
             return $this->templateResolver->resolveSymbols($this->symbols->content, $context);
         }
 
-        $head = $this->symbols->headTokens();
-        $nameToken = array_shift($head);
+        $optionTokens = $this->symbols->headTokens();
+        $nameTokens = [];
+        while (true) {
+            $token = $optionTokens[array_key_first($optionTokens)];
+            if (is_numeric($token->content()) || strpos($token->content(), '{') === 0 || strpos($token->content(), '[') === 0) {
+                break;
+            }
+            $nameTokens[] = array_shift($optionTokens);
+        }
 
-        $cacheKey = $this->getCacheKey($nameToken, $context);
+        $cacheKey = $this->getCacheKey($nameTokens, $context);
         $cacheItem = $cache->getItem($cacheKey);
 
         // cache-hit!
@@ -84,9 +92,12 @@ class CacheProcessor extends Processor
         $config = ['time' => $this->templateResolver->getConfig()->cacheDuration];
 
         // parse cache-config from statement if available
-        if (count($head) > 0) {
-            $configString = implode('', $head);
-            $parsedConfig = $context->expressionResolver()->resolve($configString, $nameToken->line());
+        if (count($optionTokens) > 0) {
+            $parsedConfig = $context->expressionResolver()->resolve(
+                implode('', $optionTokens),
+                reset($optionTokens)->line()
+            );
+
             if (is_numeric($parsedConfig)) {
                 $config['time'] = (int)$parsedConfig;
             } elseif (is_array($parsedConfig)) {
