@@ -22,7 +22,6 @@ use ricwein\Templater\Exceptions\TemplatingException;
 use ricwein\Templater\Exceptions\UnexpectedValueException;
 use ricwein\Templater\Resolver\TemplateResolver;
 use Traversable;
-use function foo\func;
 
 class CoreFunctions
 {
@@ -310,7 +309,7 @@ class CoreFunctions
             return $input;
         }
 
-        if ($input instanceof \Traversable) {
+        if ($input instanceof Traversable) {
             $input = iterator_to_array($input, true);
         }
 
@@ -518,7 +517,7 @@ class CoreFunctions
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
-    public function getDirectory($path = null, int $constraints = Constraint::STRICT): Directory
+    public function getDirectory($path = null, int $constraints = Constraint::STRICT): ?Directory
     {
         if ($path === null && $this->context !== null) {
             return new Directory($this->context->template()->directory($constraints)->storage(), $constraints);
@@ -539,17 +538,22 @@ class CoreFunctions
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
-    public function getCommand($binPath, $path = null, int $constraints = Constraint::STRICT): Directory
+    public function getCommand($binPath, $path = null, int $constraints = Constraint::STRICT): ?Directory
     {
-        if ($path === null && $this->context !== null) {
-            $storage = $this->context->template()->directory($constraints)->storage();
-            if ($storage instanceof Storage\Disk) {
+        try {
+            if ($path === null && $this->context !== null) {
+                $storage = $this->context->template()->directory($constraints)->storage();
+                if ($storage instanceof Storage\Disk) {
+                    return new Directory\Command($storage, $constraints, $binPath);
+                }
+            }
+
+            if ($path !== null && (null !== $storage = $this->fetchStoragePath($path)) && $storage instanceof Storage\Disk) {
                 return new Directory\Command($storage, $constraints, $binPath);
             }
-        }
-
-        if ($path !== null && (null !== $storage = $this->fetchStoragePath($path)) && $storage instanceof Storage\Disk) {
-            return new Directory\Command($storage, $constraints, $binPath);
+        } catch (FileNotFoundException $e) {
+            // unable to find cli-command
+            return null;
         }
 
         return null;
