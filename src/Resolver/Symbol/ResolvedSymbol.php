@@ -44,7 +44,7 @@ class ResolvedSymbol extends Symbol
                 break;
 
             // valid integers can be casted as floats, in which case is_int fails
-            case is_numeric($value) && strlen((string)$value) === strlen((string)(float)$value):
+            case is_float($value) && strlen((string)$value) === strlen((string)(float)$value):
                 $this->type = self::TYPE_INT;
                 $this->value = (int)$value;
                 break;
