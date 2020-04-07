@@ -3,11 +3,12 @@
 namespace ricwein\Templater\Engine;
 
 use Countable;
+use Exception;
 use RecursiveArrayIterator;
 use RecursiveIteratorIterator;
 use ricwein\FileSystem\Directory;
 use ricwein\FileSystem\Exceptions\AccessDeniedException;
-use ricwein\FileSystem\Exceptions\Exception;
+use ricwein\FileSystem\Exceptions\Exception as FileSystemException;
 use ricwein\FileSystem\Exceptions\FileNotFoundException;
 use ricwein\FileSystem\Exceptions\RuntimeException;
 use ricwein\FileSystem\Exceptions\UnexpectedValueException as FileSystemUnexpectedValueException;
@@ -94,6 +95,7 @@ class CoreFunctions
             'flat' => [$this, 'flat'],
             'first' => [$this, 'first'],
             'last' => [$this, 'last'],
+            'random' => [$this, 'random'],
 
             'join' => [$this, 'join'],
             'split' => [$this, 'split'],
@@ -119,6 +121,7 @@ class CoreFunctions
             'url_decode' => 'rawurldecode',
 
             'format' => 'sprintf',
+            'number_format' => 'number_format',
             'date' => [$this, 'date'],
 
             'file' => [$this, 'getFile'],
@@ -251,6 +254,77 @@ class CoreFunctions
     public function last(array $array)
     {
         return $array[array_key_last($array)];
+    }
+
+    /**
+     * @param array<int>|int|null $max
+     * @param array|int|float|string $input
+     * @return array|false|float|int|string|string[]|null
+     * @throws Exception
+     */
+    public function random($input = null, $max = null)
+    {
+        if ($input === null) {
+            if ($max === null) {
+                random_int(0, PHP_INT_MAX);
+            }
+
+            if (is_int($max)) {
+                return random_int(0, $max);
+            }
+
+            if (is_array($max) && count($max) === 2) {
+                $min = array_key_exists('min', $max) ? $max['min'] : reset($max);
+                $max = array_key_exists('max', $max) ? $max['max'] : end($max);
+                return random_int($min, $max);
+            }
+
+            throw new TemplateRuntimeException('Invalid max/range for random() function call.', 400);
+        }
+
+        if (is_int($input) && (is_int($max) || $max === null)) {
+            if ($max === null) {
+                if ($input < 0) {
+                    $max = 0;
+                    $min = $input;
+                } else {
+                    $max = $input;
+                    $min = 0;
+                }
+            } else {
+                $min = $input;
+            }
+
+            return random_int($min, $max);
+        }
+
+        if (is_string($input)) {
+            if (empty($input)) {
+                return '';
+            }
+
+            $input = preg_split('/(?<!^)(?!$)/u', $input);
+        }
+
+        if (!is_iterable($input)) {
+            return $input;
+        }
+
+        if ($input instanceof \Traversable) {
+            $input = iterator_to_array($input, true);
+        }
+
+        if (count($input) < 1) {
+            return null;
+        }
+
+        $keys = array_keys($input);
+        $randKeysKey = random_int(0, count($keys) - 1);
+        if ($randKeysKey === null) {
+            return null;
+        }
+
+        return $input[$keys[$randKeysKey]];
     }
 
     public function isEmpty($var): bool
@@ -419,7 +493,7 @@ class CoreFunctions
      * @inheritDoc
      * @param array<string|Storage>|string|Storage|null $path
      * @throws AccessDeniedException
-     * @throws Exception
+     * @throws FileSystemException
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
@@ -440,7 +514,7 @@ class CoreFunctions
      * @inheritDoc
      * @param array<string|Storage>|string|Storage|null $path
      * @throws AccessDeniedException
-     * @throws Exception
+     * @throws FileSystemException
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */
@@ -461,7 +535,7 @@ class CoreFunctions
      * @inheritDoc
      * @param array<string|Storage>|string|Storage|null $path
      * @throws AccessDeniedException
-     * @throws Exception
+     * @throws FileSystemException
      * @throws FileSystemUnexpectedValueException
      * @throws RuntimeException
      */

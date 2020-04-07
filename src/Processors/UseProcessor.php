@@ -27,8 +27,8 @@ class UseProcessor extends IncludeProcessor
         }
 
         $headTokens = $this->symbols->headTokens();
-        $filenameToken = array_shift($headTokens);
-        $file = $this->getFile($filenameToken, $context);
+        $file = $this->getFile($headTokens, $context);
+
 
         // TODO
 

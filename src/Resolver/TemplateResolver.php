@@ -158,7 +158,7 @@ class TemplateResolver extends Resolver
     /**
      * resolve a collection of symbols, mostly a subset of a template,
      * only accepts Tokens, simple BlockTokens (comments, vars) and pre-parsed Processors
-     * @param Processors\Processor[]|BaseToken[] $symbols
+     * @param array<Processors\Processor|BaseToken> $symbols
      * @param Context $context
      * @return string[]
      * @throws RuntimeException
@@ -311,16 +311,13 @@ class TemplateResolver extends Resolver
             return (string)$value;
         }
 
-        if ($this->config->debug) {
-            $type = is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value);
-            $hrValue = str_replace([PHP_EOL, ' '], '', print_r($value, true));
-            throw new RuntimeException(sprintf(
-                "Unable to print non-scalar value for '%s' (type: %s | is: %s)",
-                $path, $type, $hrValue,
-            ), 500);
-        }
+        $type = is_object($value) ? sprintf('class (%s)', get_class($value)) : gettype($value);
+        $hrValue = str_replace([PHP_EOL, ' '], '', print_r($value, true));
 
-        return '';
+        throw new RuntimeException(
+            sprintf("Unable to print non-scalar value for '%s' (type: %s | is: %s)", $path, $type, $hrValue,),
+            500
+        );
     }
 
     /**
