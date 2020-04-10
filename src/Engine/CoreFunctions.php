@@ -122,6 +122,7 @@ class CoreFunctions
             'format' => 'sprintf',
             'number_format' => 'number_format',
             'date' => [$this, 'date'],
+            'format_bytes' => [$this, 'formatBytes'],
 
             'file' => [$this, 'getFile'],
             'directory' => [$this, 'getDirectory'],
@@ -619,4 +620,20 @@ class CoreFunctions
 
         throw new TemplatingException(sprintf('Unable to fetch block for name: %s. Unknown block.', $blockName), 500);
     }
+
+    public function formatBytes(int $bytes, int $precision = 2, bool $si = false): string
+    {
+        /** @var array<int, string> $units */
+        $units = $si ? ['b', 'Kb', 'Mb', 'Gb', 'Tb'] : ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        $unit = $si ? 1000 : 1024;
+
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log($unit));
+        $pow = min($pow, count($units) - 1);
+
+        $bytes /= $unit ** $pow;
+
+        return sprintf('%s %s', round($bytes, $precision), $units[$pow]);
+    }
+
 }
